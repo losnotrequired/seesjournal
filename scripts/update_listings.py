@@ -30,7 +30,8 @@ HORIZON_DEFAULT = 12
 MAX_TEXT_CHARS = 12000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
-USER_AGENT = "OnViewSD-listings-bot/1.0 (+contact: hello@yourdomain.com)"
+RENDER_MIN_CHARS = 800   # below this, retry with a headless browser (if --render-js)
+USER_AGENT = "SeesJournalBot/1.0 (+https://seesjournal.com; San Diego art listings, contact hello@seesjournal.com)"
 
 CODES = {
     "balboa park":"BP","la jolla":"LJ","barrio logan":"BL","logan heights":"BL",
@@ -65,25 +66,62 @@ def _og_image(soup, base_url: str):
             return urljoin(base_url, t["content"].strip())
     return None
 
-def fetch_text(url: str):
-    """Returns (text, status, image); status is one of: ok, empty, robots, error."""
-    import requests
+def _extract_text(html: str, url: str):
     from bs4 import BeautifulSoup
-    if not robots_ok(url):
-        print(f"  [skip] robots.txt disallows {url}")
-        return None, "robots", None
+    soup = BeautifulSoup(html, "html.parser")
+    image = _og_image(soup, url)
+    for tag in soup(["script", "style", "noscript", "svg"]):
+        tag.decompose()
+    text = re.sub(r"\n{3,}", "\n\n", soup.get_text("\n"))[:MAX_TEXT_CHARS]
+    return (text if text.strip() else None), image
+
+def _fetch_static(url: str):
+    import requests
     try:
         r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
         r.raise_for_status()
     except Exception as e:
         print(f"  [warn] fetch failed {url}: {e}")
         return None, "error", None
-    soup = BeautifulSoup(r.text, "html.parser")
-    image = _og_image(soup, url)
-    for tag in soup(["script", "style", "noscript", "svg"]):
-        tag.decompose()
-    text = re.sub(r"\n{3,}", "\n\n", soup.get_text("\n"))[:MAX_TEXT_CHARS]
-    return (text, "ok", image) if text.strip() else (None, "empty", image)
+    text, image = _extract_text(r.text, url)
+    return (text, "ok", image) if text else (None, "empty", image)
+
+def _fetch_rendered(url: str):
+    """Render a JS-heavy page in a headless browser. Requires playwright; if it isn't
+    installed this returns an error so the caller can fall back to the static result."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        return None, "error", None
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(args=["--no-sandbox"])
+            page = browser.new_page(user_agent=USER_AGENT)
+            page.set_default_timeout(30000)
+            page.goto(url, wait_until="load")
+            page.wait_for_timeout(2500)  # let client-side JS render the listings
+            html = page.content()
+            browser.close()
+    except Exception as e:
+        print(f"  [warn] render failed {url}: {e}")
+        return None, "error", None
+    text, image = _extract_text(html, url)
+    return (text, "ok", image) if text else (None, "empty", image)
+
+def fetch_text(url: str, ignore_robots: bool = False, render: bool = False):
+    """Returns (text, status, image). Polite static GET first; if that yields thin or
+    empty text and rendering is enabled, retries with a headless browser."""
+    if not ignore_robots and not robots_ok(url):
+        print(f"  [skip] robots.txt disallows {url}")
+        return None, "robots", None
+    text, status, image = _fetch_static(url)
+    thin = status != "ok" or (text is not None and len(text) < RENDER_MIN_CHARS)
+    if render and thin:
+        rtext, rstatus, rimage = _fetch_rendered(url)
+        if rstatus == "ok" and rtext and len(rtext) > len(text or ""):
+            print(f"  [js] rendered {url} ({len(rtext)} chars)")
+            return rtext, "ok", (rimage or image)
+    return text, status, image
 
 # ---------------------------------------------------------------- extraction
 EXTRACT_PROMPT = """You are extracting art exhibitions and events from the text of a San Diego art webpage.
@@ -499,6 +537,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-fetch", action="store_true", help="skip scraping; re-render existing events.json")
     ap.add_argument("--horizon", type=int, default=HORIZON_DEFAULT, help="window length in days")
+    ap.add_argument("--ignore-robots", action="store_true", help="bypass robots.txt for all sources")
+    ap.add_argument("--render-js", action="store_true", help="render JS-heavy pages with a headless browser when static text is thin")
     args = ap.parse_args(argv)
     results: list[dict] = []
 
@@ -521,7 +561,9 @@ def main(argv=None) -> int:
             scraped: list[dict] = []
             for src in srcs:
                 print(f"- {src['name']}")
-                text, status, image = fetch_text(src["url"])
+                ig = args.ignore_robots or src.get("ignore_robots", False)
+                rj = args.render_js or src.get("render_js", False)
+                text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj)
                 n = 0
                 if text:
                     evs = extract_events(text, src["url"], args.horizon, client)
