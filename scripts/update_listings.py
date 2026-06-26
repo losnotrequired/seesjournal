@@ -299,15 +299,21 @@ def event_link(ev: dict) -> str:
     return "#"
 
 def card_date(ev: dict) -> str:
-    t = ev.get("type")
-    d = (ev.get("end_date") if t == "closing" else ev.get("start_date")) or ev.get("start_date") or ""
-    try:
-        return dt.date.fromisoformat(d).strftime("%b %-d")
-    except ValueError:
-        return d
+    s, e = ev.get("start_date") or "", ev.get("end_date") or ""
+    def fmt(d):
+        try:
+            return dt.date.fromisoformat(d).strftime("%b %-d")
+        except ValueError:
+            return d
+    if s and e and s != e:
+        return f"{fmt(s)} \u2013 {fmt(e)}"   # Mar 22 – Aug 9
+    if e and not s:
+        return f"Through {fmt(e)}"
+    if s and not e:
+        return f"From {fmt(s)}"
+    return fmt(s or e)
 
 def card(ev: dict) -> str:
-    panel = "is-plain"
     kick = KICK.get(ev.get("type"), "On View")
     slug = ev.get("type") or "exhibition"
     date = card_date(ev)
@@ -318,12 +324,12 @@ def card(ev: dict) -> str:
     if ev.get("neighborhood"):
         place += " &middot; " + esc(ev.get("neighborhood", ""))
     img = ev.get("image")
-    has = " has-photo" if img else ""
+    panel = "is-plain has-photo" if img else "is-blue"
     photo = (f'<img class="card__photo" src="{esc(img)}" alt="" loading="lazy" '
-             f"onerror=\"this.closest('.card__panel').classList.remove('has-photo');this.remove()\">"
+             f"onerror=\"this.closest('.card__panel').classList.remove('has-photo');this.closest('.card__panel').classList.add('is-blue');this.remove()\">"
              if img else "")
     return (f'<a class="card" href="{esc(url)}"{ext}>'
-            f'<div class="card__panel {panel}{has}">{photo}'
+            f'<div class="card__panel {panel}">{photo}'
             f'<span class="card__kick kick--{slug}">{esc(kick)}</span>'
             f'<span class="card__date">{esc(date)}</span>'
             f'<span class="card__when">{esc(when)}</span></div>'

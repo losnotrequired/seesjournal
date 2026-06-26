@@ -65,7 +65,7 @@ a{color:inherit;text-decoration:none}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:18px}
 .card{display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--rule-soft);transition:box-shadow .2s}
 .card:hover{box-shadow:0 14px 28px -18px rgba(63,57,49,.45)}
-.card__panel{height:130px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-items:center;column-gap:10px;padding:13px 18px}
+.card__panel{height:96px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-items:center;column-gap:10px;padding:13px 18px}
 .card__panel.is-blue{background:var(--blue);color:#fff}
 .card__panel.is-brown{background:var(--brown);color:#f3efe7}
 .card__panel.is-grey{background:var(--panel);color:var(--ink-strong)}
@@ -77,7 +77,7 @@ a{color:inherit;text-decoration:none}
 .kick--talk{background:#2b8a86}
 .kick--market{background:#b9802b}
 .kick--exhibition{background:#6b6258}
-.card__date{grid-column:1;grid-row:1 / span 2;align-self:center;font-family:'Lora',serif;font-weight:600;font-size:23px;line-height:1.05}
+.card__date{grid-column:1;grid-row:1 / span 2;align-self:center;font-family:'Lora',serif;font-weight:600;font-size:16px;line-height:1.15}
 .card__when{grid-column:2;grid-row:2;justify-self:end;text-align:right;font-size:13px}
 .card__body{padding:20px 20px 24px;display:flex;flex-direction:column;gap:8px;flex:1}
 .card__title{font-weight:600;font-size:22px;line-height:1.18;color:var(--ink-strong)}
@@ -306,3 +306,8 @@ a{color:inherit;text-decoration:none}
 .card__photo,.mcard__img{transform:none!important;transition:none!important}
 .card:hover .card__photo,.mcard:hover .mcard__img,
 .card:hover .card__panel,.mcard:hover .mcard__thumb{transform:none!important}
+
+/* No-image cards use the logo blue; keep the kick chip and text legible on blue */
+.card__panel.is-blue .card__kick{background:rgba(255,255,255,.22);color:#fff}
+.card__panel.is-blue .card__date,
+.card__panel.is-blue .card__when{color:#fff}
