@@ -69,7 +69,7 @@ sources:
   - { name: "San Diego Visual Arts Network",  url: "https://www.sdvisualarts.net/sdvan_new/ongoing_events.php",                type: html }
   - { name: "San Diego Art Directory",        url: "https://sandiegoartdirectory.com/single-category/events/?directory_type=general", type: html }
   - { name: "San Diego Magazine Events",      url: "https://sandiegomagazine.com/community-events/",                           type: html }
-  - { name: "Vanguard Culture",               url: "https://vanguardculture.com/",                                             type: html }
+  - { name: "Vanguard Culture",               url: "https://vanguardculture.com/events-calendar/",                             type: html }
   - { name: "The Cultural Calendar",          url: "https://www.theculturalcalendar.com/events-in-san-diego",                  type: html }
   - { name: "DoSD — Arts & Culture",          url: "https://dosd.com/events/arts-and-culture",                                 type: html }
   - { name: "San Diego Tourism — Events",     url: "https://www.sandiego.org/explore/events-festivals/",                       type: html }
@@ -84,3 +84,40 @@ sources:
   - { name: "Art Produce",                    url: "https://www.artproduce.org/gallery.html",                                  type: html }
   - { name: "Best Practice",                  url: "https://www.practicebest.org/",                                            type: html }
   - { name: "A Ship in the Woods",            url: "https://www.shipinthewoods.com/",                                          type: html }
+
+  # ============================================================
+  # NEW SOURCES (added via research, June 2026)
+  # ============================================================
+
+  # ---- Additional aggregators & multi-venue calendars ----
+  - { name: "SDVAN — Upcoming Events",         url: "https://www.sdvisualarts.net/sdvan_new/events.php",                        type: html }   # companion to the ongoing feed above
+  - { name: "UCSD Visual Arts — Events",       url: "https://visarts.ucsd.edu/news-events/index.html",                          type: html }
+  - { name: "Pages and Canvas (South Bay)",    url: "https://pagesandcanvas.com/",                                              type: html }
+  - { name: "Eventbrite — SD Art Events",      url: "https://www.eventbrite.com/d/ca--san-diego/art-events/",                   type: html }   # JS-heavy; may be thin
+
+  # ---- Additional galleries & art spaces ----
+  - { name: "Oolong Gallery",                  url: "https://oolongallery.com/",                                                type: html }
+  - { name: "La Jolla Art Association",        url: "https://www.lajollaartassociation.org/",                                   type: html }
+  - { name: "Meyer Fine Art (Little Italy)",   url: "https://meyerfineartinc.com/exhibitions",                                  type: html }
+  - { name: "Space 4 Art",                     url: "https://www.sdspace4art.org/upcoming",                                     type: html }
+  - { name: "Logan Ave Galería de Arte",       url: "https://2168lagda.com/",                                                   type: html }
+  - { name: "Escondido Arts Partnership",      url: "https://escondidoarts.org/current-exhibitions/",                           type: html }
+  - { name: "Fallbrook Art Center",            url: "https://www.fallbrookartcenter.org/",                                      type: html }
+  - { name: "Fallbrook Art Association",       url: "https://fallbrookartassn.org/gallery",                                     type: html }
+  - { name: "Borrego Art Institute",           url: "https://borregoartinstitute.org/",                                         type: html }
+  - { name: "Sophie's Gallery (El Cajon)",     url: "https://stmsc.org/specialization/sophies-gallery/",                        type: html }
+  - { name: "A Reason To Survive (ARTS)",      url: "https://www.areasontosurvive.org/",                                        type: html }
+  - { name: "EC Gallery (Cedros, Solana Bch)", url: "https://ecgallery.com/solana-beach",                                       type: html }
+
+  # ---- Civic / arts-council galleries ----
+  - { name: "Poway Center — Art On View",      url: "https://powaycenter.com/169/Art-On-View",                                  type: html }
+  - { name: "Oceanside Theatre — Art Events",  url: "https://oceansidetheatre.org/wcs-type/art-event/",                         type: html }
+  - { name: "Coronado Cultural Arts (C3)",     url: "https://www.coronado.ca.us/176/Cultural-Arts",                             type: html }
+  - { name: "Coronado Art Association",        url: "https://www.coronadoartassn.com/",                                         type: html }
+  - { name: "SD Public Library — Visual Arts", url: "https://www.sandiego.gov/public-library/visualarts",                       type: html }
+  - { name: "Arts District Liberty Station",   url: "https://artsdistrictlibertystation.org/our-programs/whats-here/",          type: html }
+  - { name: "Julian Arts Guild",               url: "https://www.julianartsguild.org/",                                         type: html }
+
+  # ---- Additional art walks & festivals ----
+  - { name: "Borrego Springs ArtWalk",         url: "https://www.gotoborregosprings.com/borrego-springs-artwalk-202526",        type: html }
+  - { name: "Chula Vista ArtFest",             url: "https://www.chulavistaca.gov/departments/library/chula-vista-art-fest",    type: html }
