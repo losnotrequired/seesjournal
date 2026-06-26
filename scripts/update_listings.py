@@ -233,6 +233,9 @@ def merge(existing: list[dict], scraped: list[dict]) -> list[dict]:
     by_key: dict[str, dict] = {}
     for ev in scraped:
         k = norm_key(ev)
+        # normalize null/missing dates to "" so later comparisons never hit None
+        ev["start_date"] = ev.get("start_date") or ""
+        ev["end_date"] = ev.get("end_date") or ""
         ev["code"] = code_for(ev.get("neighborhood", ""))
         ev["is_pick"] = bool(ev.get("notable")) or ev.get("type") in {"opening", "closing", "reception", "art_walk"}
         ev["first_seen"] = seen_first.get(k, today().isoformat())
@@ -242,10 +245,12 @@ def merge(existing: list[dict], scraped: list[dict]) -> list[dict]:
             for f in ("time", "url", "description", "image"):
                 if not cur.get(f) and ev.get(f):
                     cur[f] = ev[f]
-            if ev.get("start_date") and (not cur.get("start_date") or ev["start_date"] < cur["start_date"]):
-                cur["start_date"] = ev["start_date"]
-            if ev.get("end_date") and ev["end_date"] > cur.get("end_date", ""):
-                cur["end_date"] = ev["end_date"]
+            cs, es = cur.get("start_date") or "", ev.get("start_date") or ""
+            if es and (not cs or es < cs):
+                cur["start_date"] = es
+            ce, ee = cur.get("end_date") or "", ev.get("end_date") or ""
+            if ee and ee > ce:
+                cur["end_date"] = ee
         else:
             by_key[k] = ev
     return list(by_key.values())
@@ -333,13 +338,15 @@ def calendar(events: list[dict], horizon: int) -> str:
     by_day: dict[str, list[dict]] = {}
     t0 = today()
     for ev in events:
-        sd = ev.get("start_date") or ""
+        typ = ev.get("type", "")
+        # closing / last-chance shows belong on their END date; everything else on its START date
+        key = (ev.get("end_date") or "") if typ == "closing" else (ev.get("start_date") or "")
         try:
-            d = dt.date.fromisoformat(sd)
+            d = dt.date.fromisoformat(key)
         except ValueError:
             continue
         if t0 <= d <= t0 + dt.timedelta(days=horizon):
-            by_day.setdefault(sd, []).append(ev)
+            by_day.setdefault(key, []).append(ev)
     if not by_day:
         return ('<p class="note">No dated openings or events in the next %d days. '
                 'The picks above are on view now &mdash; check back for new dates.</p>' % horizon)
@@ -585,7 +592,15 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     results: list[dict] = []
 
-    existing = json.load(open(DATA))["events"] if os.path.exists(DATA) else []
+    existing = []
+    if os.path.exists(DATA):
+        try:
+            existing = json.load(open(DATA)).get("events", [])
+        except (json.JSONDecodeError, ValueError, AttributeError, KeyError, TypeError) as e:
+            # corrupt file (e.g. a git merge conflict left markers in it) -> start fresh
+            # rather than crashing every run until someone hand-fixes the JSON
+            print(f"  [warn] {DATA} is unreadable ({e}); starting from an empty set")
+            existing = []
 
     if args.no_fetch:
         events = existing
@@ -603,25 +618,30 @@ def main(argv=None) -> int:
             srcs = yaml.safe_load(open(SOURCES))["sources"]
             scraped: list[dict] = []
             for src in srcs:
-                print(f"- {src['name']}")
-                ig = args.ignore_robots or src.get("ignore_robots", False)
-                rj = args.render_js or src.get("render_js", False)
-                text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj)
-                print(f"  fetched {len(text or '')} chars (status: {status})")
-                n = 0
-                if text:
-                    evs = extract_events(text, src["url"], args.horizon, client)
-                    n = len(evs)
-                    print(f"  extracted {n} candidate event(s)")
-                    # attach the page's share image only on focused pages (1-3 events),
-                    # so big aggregator listings don't stamp a generic banner on everything
-                    if image and 1 <= n <= 3:
-                        for e in evs:
-                            e.setdefault("image", image)
-                    scraped.extend(evs)
-                    status = "ok" if n else "no events"
-                results.append({"name": src["name"], "status": status, "events": n})
-                time.sleep(RATE_LIMIT_SECONDS)
+                try:
+                    print(f"- {src['name']}")
+                    ig = args.ignore_robots or src.get("ignore_robots", False)
+                    rj = args.render_js or src.get("render_js", False)
+                    text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj)
+                    print(f"  fetched {len(text or '')} chars (status: {status})")
+                    n = 0
+                    if text:
+                        evs = extract_events(text, src["url"], args.horizon, client)
+                        n = len(evs)
+                        print(f"  extracted {n} candidate event(s)")
+                        # attach the page's share image only on focused pages (1-3 events),
+                        # so big aggregator listings don't stamp a generic banner on everything
+                        if image and 1 <= n <= 3:
+                            for e in evs:
+                                e.setdefault("image", image)
+                        scraped.extend(evs)
+                        status = "ok" if n else "no events"
+                    results.append({"name": src["name"], "status": status, "events": n})
+                except Exception as e:  # one bad source must never kill the whole batch
+                    print(f"  [warn] source failed {src.get('name','?')}: {e}")
+                    results.append({"name": src.get("name", "?"), "status": "error", "events": 0})
+                finally:
+                    time.sleep(RATE_LIMIT_SECONDS)
             events = merge(existing, scraped) if scraped else existing
 
     kept = [e for e in events if in_window(e, args.horizon)]
