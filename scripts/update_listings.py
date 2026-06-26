@@ -162,24 +162,48 @@ PAGE TEXT:
 {body}
 """
 
+def _parse_events_json(raw: str) -> list:
+    """Pull a JSON array of events out of the model's reply, tolerating code
+    fences, an object wrapper, or stray prose around it."""
+    raw = (raw or "").strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```[a-zA-Z]*\n?", "", raw)
+        raw = re.sub(r"\n?```\s*$", "", raw).strip()
+    # 1) whole reply is clean JSON (array, or object containing an array)
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            for v in data.values():
+                if isinstance(v, list):
+                    return v
+    except json.JSONDecodeError:
+        pass
+    # 2) first [...] block in the reply
+    m = re.search(r"\[.*\]", raw, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(m.group(0))
+            if isinstance(data, list):
+                return data
+        except json.JSONDecodeError:
+            pass
+    return []
+
 def extract_events(text: str, source_url: str, horizon: int, client) -> list[dict]:
     prompt = EXTRACT_PROMPT.format(today=today().isoformat(), horizon=horizon, body=text)
     try:
         msg = client.messages.create(
-            model=MODEL, max_tokens=2000,
+            model=MODEL, max_tokens=8000,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text").strip()
     except Exception as e:
         print(f"  [warn] extraction failed for {source_url}: {e}")
         return []
-    # tolerate stray text around the JSON array
-    m = re.search(r"\[.*\]", raw, re.DOTALL)
-    if not m:
-        return []
-    try:
-        items = json.loads(m.group(0))
-    except json.JSONDecodeError:
+    items = _parse_events_json(raw)
+    if not items:
         return []
     out = []
     for it in items if isinstance(items, list) else []:
