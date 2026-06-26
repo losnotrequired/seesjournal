@@ -152,6 +152,8 @@ Rules:
 - Include a show even if only its title and a date range are listed (e.g. "Artist Name, through August 9"). If a current exhibition has no explicit end date, set end_date to "".
 - Do NOT skip a show just because it opened before today — if it is still on view, include it.
 - Ignore site navigation, ads, newsletter signups, store/shop product pages, and unrelated news articles.
+- Do NOT include classes, workshops, courses, camps, summer or youth programs, children's activities, member-only events, fundraisers, or galas. Only public art exhibitions and art events (openings, receptions, art walks, artist talks, art markets).
+- When a date range is shown (e.g. "March 22 - September 13", "through Aug 9", "on view May 1-Aug 1"), you MUST capture BOTH start_date and end_date. Never return only the start date when an end date is present in the text.
 - type: use "closing" for final-day/last-chance shows; "opening"/"reception" for new shows or receptions; "art_walk" for art walks/crawls; "talk" for lectures/tours; "market" for art markets/fairs; otherwise "exhibition".
 - Set "notable" true for museum shows, closings happening soon, and art walks.
 - Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that belongs to THAT specific exhibition/event. Never use the site homepage or a generic listing root — use "" if no specific link is shown for it.
@@ -322,7 +324,7 @@ def card(ev: dict) -> str:
     ext = "" if url.endswith(".html") or url.startswith("#") else ' target="_blank" rel="noopener"'
     place = esc(ev.get("venue", ""))
     if ev.get("neighborhood"):
-        place += " &middot; " + esc(ev.get("neighborhood", ""))
+        place = (place + " &middot; " if place else "") + esc(ev.get("neighborhood", ""))
     img = ev.get("image")
     panel = "is-plain has-photo" if img else "is-blue"
     photo = (f'<img class="card__photo" src="{esc(img)}" alt="" loading="lazy" '
@@ -374,7 +376,7 @@ def calendar(events: list[dict], horizon: int) -> str:
                          f'onerror="this.remove()">' if img else "")
                 place = esc(ev.get("venue", ""))
                 if ev.get("neighborhood"):
-                    place += " &middot; " + esc(ev.get("neighborhood", ""))
+                    place = (place + " &middot; " if place else "") + esc(ev.get("neighborhood", ""))
                 feats.append(
                     f'<a class="mcard" href="{esc(href)}"{ext}>'
                     f'<div class="mcard__thumb thumb--{slug}">{thumb}</div>'
