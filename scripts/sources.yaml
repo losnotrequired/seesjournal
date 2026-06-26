@@ -1,0 +1,87 @@
+# Sources the updater reads every run. Edit freely.
+# Prefer official iCal/RSS feeds or APIs where a venue offers them — they are
+# more reliable and clearly permitted. For pages, the script checks robots.txt
+# and skips anything disallowed. You are responsible for each site's Terms of Use.
+#
+# type: html  -> fetch page, let Claude extract events from the visible text
+# (ical / rss support is stubbed in the script as an easy extension)
+
+sources:
+
+  # ---- Museums, libraries & major institutions ----
+  - { name: "MCASD — Exhibitions",            url: "https://mcasd.org/exhibitions",                                            type: html }
+  - { name: "San Diego Museum of Art",        url: "https://www.sdmart.org/exhibitions/",                                      type: html }
+  - { name: "Mingei International",            url: "https://mingei.org/exhibitions",                                           type: html }
+  - { name: "Timken Museum — Calendar",       url: "https://www.timkenmuseum.org/calendar/list/",                              type: html }
+  - { name: "Oceanside Museum of Art",        url: "https://oma-online.org/",                                                  type: html }
+  - { name: "ICA San Diego",                  url: "https://icasandiego.org/",                                                 type: html }
+  - { name: "Athenaeum — Current",            url: "https://www.ljathenaeum.org/current-exhibitions",                          type: html }
+  - { name: "Balboa Park — Exhibitions",      url: "https://balboapark.org/events/category/exhibition/",                       type: html }
+  - { name: "Visions Museum of Textile Art",  url: "https://vmota.org/",                                                       type: html }
+  - { name: "California Center for the Arts",  url: "https://artcenter.org/events/category/museum/",                            type: html }
+  - { name: "Cannon Art Gallery (Carlsbad)",  url: "https://www.carlsbadca.gov/departments/cultural-arts/gallery-exhibitions", type: html }
+  - { name: "The New Children's Museum",      url: "https://thinkplaycreate.org/calendar/",                                    type: html }
+  - { name: "Bonita Museum & Cultural Ctr",   url: "https://bonitahistoricalsociety.org/events/",                              type: html }
+  - { name: "Japanese Friendship Garden",     url: "https://www.niwa.org/",                                                    type: html }
+  - { name: "Spanish Village Art Center",     url: "https://www.spanishvillageartcenter.com/",                                 type: html }
+  - { name: "Village Arts Center (Balboa)",   url: "https://villageartscenter.org/",                                           type: html }   # possibly same venue as Spanish Village — drop one if events duplicate
+
+  # ---- Commercial / contemporary galleries ----
+  - { name: "Quint Gallery",                  url: "https://www.quintgallery.com/",                                            type: html }
+  - { name: "Madison Gallery",                url: "https://madisongalleries.com/",                                            type: html }
+  - { name: "Sparks Gallery",                 url: "https://sparksgallery.com/",                                               type: html }
+  - { name: "Tasende Gallery",                url: "https://www.tasendegallery.com/current-exhibitions",                       type: html }
+  - { name: "Joseph Bellows Gallery",         url: "https://www.josephbellows.com/exhibitions",                                type: html }
+  - { name: "Distinction Gallery",            url: "https://distinctionart.com/exhibitions.php",                               type: html }
+  - { name: "Thumbprint Gallery",             url: "https://www.thumbprintgallery.com/pages/exhibitions",                      type: html }
+  - { name: "Alexander Salazar Fine Art",     url: "https://alexandersalazarfineart.com/",                                     type: html }
+
+  # ---- University & college galleries ----
+  - { name: "SDSU Gallery Program",           url: "https://art.sdsu.edu/gallery-program",                                     type: html }
+  - { name: "UCSD Stuart Collection",         url: "https://stuartcollection.ucsd.edu/",                                       type: html }
+  - { name: "USD Hoehn Family Galleries",     url: "https://www.sandiego.edu/galleries/exhibitions/",                          type: html }
+  - { name: "MiraCosta Kruglak Gallery",      url: "https://kruglakgallery.weebly.com/",                                       type: html }
+  - { name: "Palomar College Boehm Gallery",  url: "https://www.palomar.edu/boehmgallery/",                                    type: html }
+  - { name: "Southwestern College Gallery",   url: "https://www.swccd.edu/swc-community/art-gallery/index.aspx",                type: html }
+  - { name: "Mesa College Art Gallery",       url: "https://www.sdmesa.edu/about-mesa/galleries-and-attractions/mesa-college-art-gallery/exhibits/index.shtml", type: html }
+  - { name: "Grossmont Hyde Art Gallery",     url: "https://www.grossmont.edu/get-involved/arts-and-culture/hyde-art-gallery/index.php", type: html }
+  - { name: "City College City Gallery",      url: "https://citygallerysdcc.weebly.com/",                                      type: html }
+
+  # ---- Art walks, festivals & neighborhood arts events ----
+  - { name: "Mission Fed ArtWalk",            url: "https://www.artwalksandiego.org/missionfed/",                              type: html }
+  - { name: "ArtWalk Liberty Station",        url: "https://www.artwalksandiego.org/libertystation/",                          type: html }
+  - { name: "ArtWalk Carlsbad",               url: "https://www.artwalksandiego.org/carlsbad/",                                type: html }
+  - { name: "First Friday Arts District",     url: "https://libertystation.com/events/first-friday-arts-district",              type: html }
+  - { name: "Barrio Art Crawl",               url: "https://www.barrioartcrawl.com/",                                          type: html }
+  - { name: "Oceanside First Friday Walk",    url: "https://www.oceansideartwalk.org/",                                        type: html }
+  - { name: "La Jolla First Friday Art Walk", url: "https://lajollabythesea.com/",                                             type: html }
+  - { name: "La Jolla Art & Wine Festival",   url: "https://www.ljawf.com/",                                                   type: html }
+  - { name: "Murals of La Jolla",             url: "https://www.muralsoflajolla.com/walking-tour-reservations",                type: html }
+  - { name: "Carlsbad Village Art Walk",      url: "https://www.carlsbad-village.com/events",                                  type: html }
+  - { name: "Encinitas 101 MainStreet",       url: "https://www.encinitas101.com/events",                                      type: html }
+  - { name: "LeucadiART Walk (Leucadia 101)", url: "https://leucadia101.com/",                                                 type: html }
+  - { name: "Ray at Night (North Park)",      url: "https://www.rayatnight.com/",                                              type: html }   # verify — one aggregator flagged it discontinued
+  - { name: "Art Around Adams",               url: "https://www.artaroundadams.org/",                                          type: html }
+  - { name: "Old Town Art Festival",          url: "http://www.oldtownartfestival.org/",                                       type: html }
+  - { name: "San Diego Watercolor Society",   url: "https://www.sdws.org/",                                                    type: html }
+
+  # ---- Aggregators, directories & arts councils ----
+  - { name: "San Diego Reader — Art",         url: "https://www.sandiegoreader.com/san-diego-art-events/",                     type: html }
+  - { name: "KPBS — Arts & Culture",          url: "https://www.kpbs.org/news/arts-culture",                                   type: html }
+  - { name: "San Diego Visual Arts Network",  url: "https://www.sdvisualarts.net/sdvan_new/ongoing_events.php",                type: html }
+  - { name: "San Diego Art Directory",        url: "https://sandiegoartdirectory.com/single-category/events/?directory_type=general", type: html }
+  - { name: "San Diego Magazine Events",      url: "https://sandiegomagazine.com/community-events/",                           type: html }
+  - { name: "Vanguard Culture",               url: "https://vanguardculture.com/",                                             type: html }
+  - { name: "The Cultural Calendar",          url: "https://www.theculturalcalendar.com/events-in-san-diego",                  type: html }
+  - { name: "DoSD — Arts & Culture",          url: "https://dosd.com/events/arts-and-culture",                                 type: html }
+  - { name: "San Diego Tourism — Events",     url: "https://www.sandiego.org/explore/events-festivals/",                       type: html }
+  - { name: "San Diego Art Prize",            url: "https://www.sandiegoartprize.com/",                                        type: html }
+
+  # ---- Nonprofit / alternative / DIY art spaces ----
+  - { name: "Bread & Salt",                   url: "https://www.breadandsaltsandiego.com/",                                    type: html }
+  - { name: "Athenaeum Art Center",           url: "https://www.ljathenaeum.org/aac",                                          type: html }
+  - { name: "Front Porch Gallery (Carlsbad)", url: "https://www.frontporchgallery.org/current",                                type: html }
+  - { name: "The Studio Door",                url: "https://thestudiodoor.com/",                                               type: html }
+  - { name: "Art Produce",                    url: "https://www.artproduce.org/gallery.html",                                  type: html }
+  - { name: "Best Practice",                  url: "https://www.practicebest.org/",                                            type: html }
+  - { name: "A Ship in the Woods",            url: "https://www.shipinthewoods.com/",                                          type: html }

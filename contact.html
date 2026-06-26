@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — Sees Journal</title>
+<meta name="description" content="Send tips, announcements, and corrections to Sees Journal.">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body id="top">
+
+<header class="site-header"><div class="wrap site-header__in">
+  <div class="site-header__left">
+    <span class="icon-acct" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4 0-9 2-9 6v2h18v-2c0-4-5-6-9-6Z"/></svg></span>
+    <button class="hamb" id="hamb" aria-label="Open menu"><span></span><span></span><span></span></button>
+  </div>
+  <a href="index.html" class="logo" aria-label="Sees Journal"><img src="assets/images/logo.png" alt="Sees Journal"></a>
+  <div class="site-header__right"><a class="signin" href="contact.html">Sign In</a></div>
+</div></header>
+<nav class="menu" id="menu">
+  <button class="menu__close" id="close">Close</button>
+  <a href="index.html" data-menu>Home</a>
+  <a href="onview.html" data-menu>On View</a>
+  <a href="standouts.html" data-menu>Standouts</a>
+  <a href="press.html" data-menu>Press</a>
+  <a href="about.html" data-menu>About</a>
+  <a href="contact.html" data-menu>Contact</a>
+</nav>
+
+<div class="wrap">
+  <header class="page-hero"><h1>Contact</h1></header>
+
+  <div class="contact-grid">
+    <div class="contact-info">
+      <p>Send announcements, tips, and corrections to the editorial team using the form. We read everything, though we can&rsquo;t always reply.</p>
+      <p>Writers interested in contributing a short review or pitch for <a href="standouts.html">Standouts</a> are welcome &mdash; use the form and tell us what you have in mind.</p>
+      <p>For advertising or partnership inquiries, note &ldquo;advertising&rdquo; in your message.</p>
+      <p>Prefer email? Reach us at <a href="mailto:hello@yourdomain.com">hello@yourdomain.com</a> <em>(replace with your address before launch)</em>.</p>
+      <p class="addr">Sees Journal<br>San Diego, CA</p>
+    </div>
+
+    <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" class="form" action="/thanks.html">
+      <input type="hidden" name="form-name" value="contact">
+      <p class="hidden"><label>Skip this field if you are human: <input name="bot-field"></label></p>
+      <h3>Send a message</h3>
+      <div class="field"><label for="fn">First name</label><input id="fn" type="text" name="first-name"></div>
+      <div class="field"><label for="ln">Last name</label><input id="ln" type="text" name="last-name"></div>
+      <div class="field"><label for="em">Email</label><input id="em" type="email" name="email" required></div>
+      <div class="field"><label for="ms">Message</label><textarea id="ms" name="message" rows="5" required></textarea></div>
+      <button class="btn" type="submit">Send</button>
+    </form>
+  </div>
+
+  <div class="newsletter">
+    <h3>Subscribe to the newsletter</h3>
+    <p>A short note when the next listing drops.</p>
+    <form name="newsletter" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thanks.html">
+      <input type="hidden" name="form-name" value="newsletter">
+      <p class="hidden"><label>Skip if human: <input name="bot-field"></label></p>
+      <div class="row2">
+        <input type="email" name="email" placeholder="you@email.com" required>
+        <button class="btn" type="submit">Subscribe</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="site-footer"><div class="wrap">
+  <div class="logo footlogo"><img src="assets/images/logo.png" alt="Sees Journal"></div>
+  <p class="mission">An <em>independent</em> listing of everything on view in San Diego, California &mdash; and beyond.</p>
+  <div class="footlinks"><a href="about.html">About</a><a href="contact.html">Contact</a></div>
+  <hr class="footrule">
+  <p class="copy">Sees Journal &middot; San Diego</p>
+  <p class="footnote"><a href="privacy.html">Privacy</a></p>
+</div></footer>
+<a href="#top" class="totop" id="totop" aria-label="Back to top">&#8593;</a>
+<script src="assets/main.js"></script>
+</body>
+</html>
