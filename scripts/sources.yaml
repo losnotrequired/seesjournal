@@ -59,7 +59,6 @@ sources:
   - { name: "Carlsbad Village Art Walk",      url: "https://www.carlsbad-village.com/events",                                  type: html }
   - { name: "Encinitas 101 MainStreet",       url: "https://www.encinitas101.com/events",                                      type: html }
   - { name: "LeucadiART Walk (Leucadia 101)", url: "https://leucadia101.com/",                                                 type: html }
-  - { name: "Ray at Night (North Park)",      url: "https://www.rayatnight.com/",                                              type: html }   # verify — one aggregator flagged it discontinued
   - { name: "Old Town Art Festival",          url: "http://www.oldtownartfestival.org/",                                       type: html }
   - { name: "San Diego Watercolor Society",   url: "https://www.sdws.org/",                                                    type: html }
 
@@ -74,7 +73,6 @@ sources:
   - { name: "DoSD — Arts & Culture",          url: "https://dosd.com/events/arts-and-culture",                                 type: html }
   - { name: "San Diego Tourism — Events",     url: "https://www.sandiego.org/explore/events-festivals/",                       type: html }
   - { name: "City of San Diego — Events",     url: "https://www.sandiego.gov/events",                                          type: html }
-  - { name: "San Diego Art Prize",            url: "https://www.sandiegoartprize.com/",                                        type: html }
 
   # ---- Nonprofit / alternative / DIY art spaces ----
   - { name: "Bread & Salt",                   url: "https://www.breadandsaltsandiego.com/",                                    type: html }
@@ -93,6 +91,7 @@ sources:
   - { name: "SDVAN — Upcoming Events",         url: "https://www.sdvisualarts.net/sdvan_new/events.php",                        type: html }   # companion to the ongoing feed above
   - { name: "UCSD Visual Arts — Events",       url: "https://visarts.ucsd.edu/news-events/index.html",                          type: html }
   - { name: "Pages and Canvas (South Bay)",    url: "https://pagesandcanvas.com/",                                              type: html }
+  - { name: "Fox5 Community Cal — Arts",       url: "https://fox5sandiego.com/community-calendar/#!/show?category=10055",        type: html }   # JS/SpinGo widget — experimental, may yield nothing
   - { name: "Eventbrite — SD Art Events",      url: "https://www.eventbrite.com/d/ca--san-diego/art-events/",                   type: html }   # JS-heavy; may be thin
 
   # ---- Additional galleries & art spaces ----
