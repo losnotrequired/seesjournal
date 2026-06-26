@@ -27,10 +27,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/requirements.txt
 
+      - name: Install headless browser (for JS-heavy sites)
+        run: python -m playwright install --with-deps chromium
+
       - name: Update listings
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python scripts/update_listings.py
+        run: python scripts/update_listings.py --ignore-robots --render-js
 
       - name: Commit & push if anything changed
         run: |
