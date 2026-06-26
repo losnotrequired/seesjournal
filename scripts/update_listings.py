@@ -138,7 +138,14 @@ def _fetch_rendered(url: str):
             page = browser.new_page(user_agent=BROWSER_UA)
             page.set_default_timeout(30000)
             page.goto(url, wait_until="load")
-            page.wait_for_timeout(2500)  # let client-side JS render the listings
+            # Many calendars (SpinGo, Eventbrite, Tribe) fetch their events by XHR *after*
+            # load. Wait for the network to settle so that data is in the DOM before we read
+            # it; ad/analytics-heavy pages may never idle, so cap it and proceed regardless.
+            try:
+                page.wait_for_load_state("networkidle", timeout=12000)
+            except Exception:
+                pass
+            page.wait_for_timeout(2500)  # a final beat for the widget to paint
             html = page.content()
             browser.close()
     except Exception as e:
@@ -162,62 +169,96 @@ def fetch_text(url: str, ignore_robots: bool = False, render: bool = False):
             return rtext, "ok", (rimage or image)
     return text, status, image
 
-def _page_image(url: str, ignore_robots: bool) -> str:
-    """Best representative image for a single detail page: the official share image
-    (og:image / twitter:image) if present, otherwise a real content photo served from a
-    recognized media folder. Older sites (e.g. SDVAN) set no og:image but store event
-    photos under paths like /images/events/ — we target those and skip site chrome
-    (logos, banners, sponsor strips, nav buttons, thumbnails)."""
+def _is_aggregator(url: str) -> bool:
+    """SDVAN is a community aggregator; prefer a show's own gallery link when we have one."""
+    return "sdvisualarts.net" in (url or "").lower()
+
+def _fetch_soup(url: str, ignore_robots: bool):
+    """Fetch a detail page once and return a parsed soup (or None). Short timeout because
+    this can run up to `limit` times per crawl."""
     try:
         if not ignore_robots and not robots_ok(url):
-            return ""
+            return None
         import requests
-        # short timeout: a detail page only needs its <head>/body parsed, and this runs up
-        # to `limit` times — a long per-request timeout could balloon the whole job.
         r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=10)
         if r.status_code != 200:
-            return ""
+            return None
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(r.text, "html.parser")
-        og = _og_image(soup, url)
-        if og:
-            return og
-        # No share image: look for a genuine content photo in a known media directory.
-        # Skip words are matched only as delimited path/filename tokens, so a real photo
-        # like "navarro_18880.jpg" isn't dropped for containing "nav".
-        skip = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
-                          r"spacer|pixel|banner|sponsor|header|footer|nav|button|thumb)s?"
-                          r"(?:$|[/_.\-])", re.I)
-        photo_dir = re.compile(r"(/images/events/|/uploads?/|/wp-content/uploads/|/event|"
-                               r"/gallery/|/media/|/artwork|/exhibition|/files/|/photos?/)", re.I)
-        for im in soup.find_all("img"):
-            src = _img_url(im, url)
-            if not src or not src.startswith("http") or skip.search(src):
-                continue
-            if photo_dir.search(src):
-                return src
-        return ""
+        return BeautifulSoup(r.text, "html.parser")
     except Exception:
-        return ""
+        return None
+
+def _image_from_soup(soup, base_url: str) -> str:
+    """Best representative image on a detail page: the share image (og:image / twitter:image)
+    if present, else a real content photo from a recognized media folder. Older sites (e.g.
+    SDVAN) set no og:image but store event photos under paths like /images/events/ — target
+    those and skip site chrome (logos, banners, sponsor strips, nav buttons, thumbnails).
+    Skip words match only as delimited path/filename tokens, so a real photo like
+    "navarro_18880.jpg" isn't dropped for containing "nav"."""
+    og = _og_image(soup, base_url)
+    if og:
+        return og
+    skip = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
+                      r"spacer|pixel|banner|sponsor|header|footer|nav|button|thumb)s?"
+                      r"(?:$|[/_.\-])", re.I)
+    photo_dir = re.compile(r"(/images/events/|/uploads?/|/wp-content/uploads/|/event|"
+                           r"/gallery/|/media/|/artwork|/exhibition|/files/|/photos?/)", re.I)
+    for im in soup.find_all("img"):
+        src = _img_url(im, base_url)
+        if not src or not src.startswith("http") or skip.search(src):
+            continue
+        if photo_dir.search(src):
+            return src
+    return ""
+
+def _canonical_link(soup, base_url: str) -> str:
+    """On an aggregator detail page (SDVAN), find the show's own external link — the gallery's
+    event/site page — so we can link there instead of the aggregator. Picks the most specific
+    (longest) off-site link that isn't the aggregator, a social network, a map, or an email."""
+    from urllib.parse import urljoin
+    skip_host = ("sdvisualarts.net", "facebook.", "instagram.", "twitter.", "x.com",
+                 "youtube.", "youtu.be", "linkedin.", "tiktok.", "pinterest.", "flickr.",
+                 "google.com/maps", "maps.google", "goo.gl", "bit.ly", "paypal.", "eventbrite.")
+    best = ""
+    for a in soup.find_all("a", href=True):
+        href = urljoin(base_url, (a.get("href") or "").strip())
+        low = href.lower()
+        if not low.startswith("http") or low.startswith("mailto"):
+            continue
+        if any(h in low for h in skip_host):
+            continue
+        if len(href) > len(best):   # the gallery's specific exhibition page is usually the longest
+            best = href
+    return best
 
 def enrich_images(events: list, ignore_robots: bool, limit: int = 60) -> None:
-    """For events with a deep link but no image yet, pull the og:image from the
-    show's own detail page (listing pages rarely expose per-show photos)."""
+    """Fetch each show's detail page to (a) pull a representative image when the listing
+    didn't supply one, and (b) for SDVAN aggregator links, swap in the gallery's own page so
+    we point at the original source. One fetch per page covers both."""
     fetched = 0
     for ev in events:
-        if ev.get("image"):
-            continue
         url = ev.get("url") or ""
         if not _is_event_url(url):
             continue
+        is_agg = _is_aggregator(url)
+        needs_img = not ev.get("image")
+        if not (needs_img or is_agg):      # nothing to gain from a fetch
+            continue
         if fetched >= limit:
             break
-        img = _page_image(url, ignore_robots)
+        soup = _fetch_soup(url, ignore_robots)
         fetched += 1
-        if img:
-            ev["image"] = img
+        if soup is not None:
+            if needs_img:
+                img = _image_from_soup(soup, url)
+                if img:
+                    ev["image"] = img
+            if is_agg:                      # set link AFTER image (image came from the SDVAN page)
+                canon = _canonical_link(soup, url)
+                if canon:
+                    ev["url"] = canon
         time.sleep(RATE_LIMIT_SECONDS)
-    print(f"  enriched images from {fetched} detail page(s)")
+    print(f"  enriched {fetched} detail page(s)")
 
 
 # ---------------------------------------------------------------- extraction
@@ -348,6 +389,10 @@ def merge(existing: list[dict], scraped: list[dict]) -> list[dict]:
             for f in ("time", "url", "description", "image"):
                 if not cur.get(f) and ev.get(f):
                     cur[f] = ev[f]
+            # If the kept link is a SDVAN aggregator page but this duplicate has the show's
+            # own gallery link, prefer the original source.
+            if _is_aggregator(cur.get("url", "")) and ev.get("url") and not _is_aggregator(ev["url"]):
+                cur["url"] = ev["url"]
             cs, es = cur.get("start_date") or "", ev.get("start_date") or ""
             if es and (not cs or es < cs):
                 cur["start_date"] = es
