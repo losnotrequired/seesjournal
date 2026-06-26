@@ -32,6 +32,10 @@ REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
 RENDER_MIN_CHARS = 800   # below this, retry with a headless browser (if --render-js)
 USER_AGENT = "SeesJournalBot/1.0 (+https://seesjournal.com; San Diego art listings, contact hello@seesjournal.com)"
+# Some public-event sites reject unknown bots with a 403. For those we retry once with a
+# common browser UA — these are public listings pages and we still rate-limit politely.
+BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
 CODES = {
     "balboa park":"BP","la jolla":"LJ","barrio logan":"BL","logan heights":"BL",
@@ -107,6 +111,12 @@ def _fetch_static(url: str):
     import requests
     try:
         r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
+        # If the site blocks our bot (403/401/429), retry once as a browser before giving up.
+        if r.status_code in (401, 403, 429):
+            r = requests.get(url, headers={"User-Agent": BROWSER_UA,
+                                           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                                           "Accept-Language": "en-US,en;q=0.9"},
+                             timeout=REQUEST_TIMEOUT)
         r.raise_for_status()
     except Exception as e:
         print(f"  [warn] fetch failed {url}: {e}")
@@ -124,7 +134,7 @@ def _fetch_rendered(url: str):
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page(user_agent=USER_AGENT)
+            page = browser.new_page(user_agent=BROWSER_UA)
             page.set_default_timeout(30000)
             page.goto(url, wait_until="load")
             page.wait_for_timeout(2500)  # let client-side JS render the listings
@@ -151,11 +161,69 @@ def fetch_text(url: str, ignore_robots: bool = False, render: bool = False):
             return rtext, "ok", (rimage or image)
     return text, status, image
 
+def _page_image(url: str, ignore_robots: bool) -> str:
+    """Best representative image for a single detail page: the official share image
+    (og:image / twitter:image) if present, otherwise a real content photo served from a
+    recognized media folder. Older sites (e.g. SDVAN) set no og:image but store event
+    photos under paths like /images/events/ — we target those and skip site chrome
+    (logos, banners, sponsor strips, nav buttons, thumbnails)."""
+    try:
+        if not ignore_robots and not robots_ok(url):
+            return ""
+        import requests
+        # short timeout: a detail page only needs its <head>/body parsed, and this runs up
+        # to `limit` times — a long per-request timeout could balloon the whole job.
+        r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=10)
+        if r.status_code != 200:
+            return ""
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(r.text, "html.parser")
+        og = _og_image(soup, url)
+        if og:
+            return og
+        # No share image: look for a genuine content photo in a known media directory.
+        # Skip words are matched only as delimited path/filename tokens, so a real photo
+        # like "navarro_18880.jpg" isn't dropped for containing "nav".
+        skip = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
+                          r"spacer|pixel|banner|sponsor|header|footer|nav|button|thumb)s?"
+                          r"(?:$|[/_.\-])", re.I)
+        photo_dir = re.compile(r"(/images/events/|/uploads?/|/wp-content/uploads/|/event|"
+                               r"/gallery/|/media/|/artwork|/exhibition|/files/|/photos?/)", re.I)
+        for im in soup.find_all("img"):
+            src = _img_url(im, url)
+            if not src or not src.startswith("http") or skip.search(src):
+                continue
+            if photo_dir.search(src):
+                return src
+        return ""
+    except Exception:
+        return ""
+
+def enrich_images(events: list, ignore_robots: bool, limit: int = 60) -> None:
+    """For events with a deep link but no image yet, pull the og:image from the
+    show's own detail page (listing pages rarely expose per-show photos)."""
+    fetched = 0
+    for ev in events:
+        if ev.get("image"):
+            continue
+        url = ev.get("url") or ""
+        if not _is_event_url(url):
+            continue
+        if fetched >= limit:
+            break
+        img = _page_image(url, ignore_robots)
+        fetched += 1
+        if img:
+            ev["image"] = img
+        time.sleep(RATE_LIMIT_SECONDS)
+    print(f"  enriched images from {fetched} detail page(s)")
+
+
 # ---------------------------------------------------------------- extraction
 EXTRACT_PROMPT = """You are extracting art exhibitions and events from the text of a San Diego art webpage.
 
 Return ONLY a JSON array (no prose, no markdown fences). Each element:
-{{
+{
   "title": "exhibition or event title",
   "venue": "gallery or museum name",
   "neighborhood": "San Diego neighborhood or city (e.g. Balboa Park, La Jolla, Barrio Logan, Oceanside)",
@@ -167,7 +235,7 @@ Return ONLY a JSON array (no prose, no markdown fences). Each element:
   "description": "one short sentence, <= 20 words",
   "image": "URL of this show's image if one is tagged near it like {image: https://...}; else empty string",
   "notable": true/false
-}}
+}
 
 Rules:
 - Extract EVERY visual-art exhibition or event shown on the page: exhibitions currently ON VIEW (ongoing), upcoming openings, receptions, closing/last-chance shows, art walks, artist talks, and art markets.
@@ -217,8 +285,14 @@ def _parse_events_json(raw: str) -> list:
     return []
 
 def extract_events(text: str, source_url: str, horizon: int, client) -> list[dict]:
-    prompt = EXTRACT_PROMPT.format(today=today().isoformat(), horizon=horizon, body=text)
     try:
+        # Build with .replace() (not .format()): the prompt contains literal braces in its
+        # JSON schema and in {image: ...} examples, and str.format() would try to read those
+        # as fields and raise KeyError. .replace() only touches our three real placeholders.
+        prompt = (EXTRACT_PROMPT
+                  .replace("{today}", today().isoformat())
+                  .replace("{horizon}", str(horizon))
+                  .replace("{body}", text))
         msg = client.messages.create(
             model=MODEL, max_tokens=8000,
             messages=[{"role": "user", "content": prompt}],
@@ -686,6 +760,9 @@ def main(argv=None) -> int:
 
     kept = [e for e in events if in_window(e, args.horizon)]
     kept.sort(key=lambda e: (e.get("start_date") or "9999", e.get("title", "")))
+
+    if not args.no_fetch:
+        enrich_images(kept, args.ignore_robots)
 
     json.dump({"updated": today().isoformat(), "window_days": args.horizon, "events": kept},
               open(DATA, "w"), indent=2, ensure_ascii=False)
