@@ -68,10 +68,17 @@ def _og_image(soup, base_url: str):
 
 def _extract_text(html: str, url: str):
     from bs4 import BeautifulSoup
+    from urllib.parse import urljoin
     soup = BeautifulSoup(html, "html.parser")
     image = _og_image(soup, url)
     for tag in soup(["script", "style", "noscript", "svg"]):
         tag.decompose()
+    # Append each link's absolute URL inline (e.g. "Show Title [https://...]") so the
+    # model can return the real per-event link instead of falling back to the homepage.
+    for a in soup.find_all("a", href=True):
+        href = urljoin(url, (a.get("href") or "").strip())
+        if href.startswith("http"):
+            a.append(f" [{href}] ")
     text = re.sub(r"\n{3,}", "\n\n", soup.get_text("\n"))[:MAX_TEXT_CHARS]
     return (text if text.strip() else None), image
 
@@ -141,12 +148,15 @@ Return ONLY a JSON array (no prose, no markdown fences). Each element:
 }}
 
 Rules:
-- Only include real visual-art exhibitions or events. Ignore navigation, ads, newsletters, unrelated articles.
-- Use "closing" if the text emphasizes a final day/closing date near today; "opening"/"reception" for new shows; "art_walk" for art walks/crawls.
-- Set "notable" true for museum openings, closings happening soon, and art walks.
-- For "url", only use a link that points to the specific event or exhibition page. Never return the site's homepage (e.g. https://gallery.com/) or a generic listing root &mdash; use an empty string instead.
-- If you cannot find any events, return [].
-- Today's date is {today}. Prefer events on view or happening within the next {horizon} days.
+- Extract EVERY visual-art exhibition or event shown on the page: exhibitions currently ON VIEW (ongoing), upcoming openings, receptions, closing/last-chance shows, art walks, artist talks, and art markets.
+- Include a show even if only its title and a date range are listed (e.g. "Artist Name, through August 9"). If a current exhibition has no explicit end date, set end_date to "".
+- Do NOT skip a show just because it opened before today — if it is still on view, include it.
+- Ignore site navigation, ads, newsletter signups, store/shop product pages, and unrelated news articles.
+- type: use "closing" for final-day/last-chance shows; "opening"/"reception" for new shows or receptions; "art_walk" for art walks/crawls; "talk" for lectures/tours; "market" for art markets/fairs; otherwise "exhibition".
+- Set "notable" true for museum shows, closings happening soon, and art walks.
+- Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that belongs to THAT specific exhibition/event. Never use the site homepage or a generic listing root — use "" if no specific link is shown for it.
+- Today's date is {today}. Include current and upcoming items; you may include ongoing exhibitions that are on view now even if they run past {horizon} days.
+- If there are genuinely no visual-art exhibitions or events in the text, return [].
 
 PAGE TEXT:
 {body}
@@ -219,10 +229,11 @@ def merge(existing: list[dict], scraped: list[dict]) -> list[dict]:
 def in_window(ev: dict, horizon: int) -> bool:
     t0, t1 = today(), today() + dt.timedelta(days=horizon)
     sd = ev.get("start_date") or ""
-    ed = ev.get("end_date") or sd
+    ed = ev.get("end_date") or ""
     try:
         s = dt.date.fromisoformat(sd) if sd else t0
-        e = dt.date.fromisoformat(ed) if ed else s
+        # no end date -> treat as ongoing/open-ended (still on view through the window)
+        e = dt.date.fromisoformat(ed) if ed else max(s, t1)
     except ValueError:
         return True  # keep undated events rather than silently drop
     return s <= t1 and e >= t0
@@ -466,6 +477,13 @@ def render(events: list[dict], horizon: int) -> None:
     p = os.path.join(ROOT, "onview.html"); s = open(p).read()
     stats = onview_stats(events) or "Listings updating &mdash; new shows are being gathered."
     s = replace_between(s, "<!-- AUTO:ONVIEWSTATS:START -->", "<!-- AUTO:ONVIEWSTATS:END -->", stats)
+    # Also On View: ongoing exhibitions already open (deep links via event_link, never stale)
+    also = [e for e in events if e.get("type") == "exhibition"
+            and (not e.get("start_date") or e["start_date"] < today().isoformat())]
+    also.sort(key=lambda e: (e.get("end_date") or "9999"))
+    also_html = grid(also[:9]) if also else \
+        '<p class="note">No ongoing exhibitions listed right now &mdash; see the day-by-day calendar below.</p>'
+    s = replace_between(s, "<!-- AUTO:ALSO:START -->", "<!-- AUTO:ALSO:END -->", also_html)
     cal = calendar(events, horizon)
     s = replace_between(s, "<!-- AUTO:CALENDAR:START -->", "<!-- AUTO:CALENDAR:END -->", cal)
     s = replace_between(s, "<!-- AUTO:UPDATED:START -->", "<!-- AUTO:UPDATED:END -->", f"Updated {stamp}")
@@ -482,7 +500,8 @@ def render(events: list[dict], horizon: int) -> None:
         '<p class="hero__cat">Openings, closings, and art walks will appear here shortly.</p>'
         '<a class="pill" href="onview.html">Browse all</a>')
     s = replace_between(s, "<!-- AUTO:HERO:START -->", "<!-- AUTO:HERO:END -->", hero)
-    home_picks = [e for e in picks if e is not hev][:6]
+    ordered = picks + [e for e in events if not e.get("is_pick")]
+    home_picks = [e for e in ordered if e is not hev][:6]
     if home_picks:
         tag, head, sub = opening_header(home_picks)
         highlights = grid(home_picks)
@@ -564,6 +583,7 @@ def main(argv=None) -> int:
                 ig = args.ignore_robots or src.get("ignore_robots", False)
                 rj = args.render_js or src.get("render_js", False)
                 text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj)
+                print(f"  fetched {len(text or '')} chars (status: {status})")
                 n = 0
                 if text:
                     evs = extract_events(text, src["url"], args.horizon, client)
