@@ -27,6 +27,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
+STYLE_VERSION = "4"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 16000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -407,13 +408,23 @@ def card_date(ev: dict) -> str:
             return dt.date.fromisoformat(d).strftime("%b %-d")
         except ValueError:
             return d
-    if s and e and s != e:
-        return f"{fmt(s)} \u2013 {fmt(e)}"   # Mar 22 – Aug 9
-    if e and not s:
-        return f"Through {fmt(e)}"
-    if s and not e:
-        return f"From {fmt(s)}"
-    return fmt(s or e)
+    def parse(d):
+        try:
+            return dt.date.fromisoformat(d)
+        except ValueError:
+            return None
+    sd, ed, t = parse(s), parse(e), today()
+    if s and e and s == e:
+        return fmt(s)                                  # single-day event
+    if e:
+        # Anything already on view reads consistently as "Through <close date>".
+        # Upcoming shows (not open yet) keep the full range so the opening date is clear.
+        if sd and sd > t:
+            return f"{fmt(s)} \u2013 {fmt(e)}"          # upcoming: Aug 1 – Sep 1
+        return f"Through {fmt(e)}"                       # on view now: Through Sep 1
+    if s:
+        return f"Opens {fmt(s)}" if (sd and sd > t) else f"From {fmt(s)}"
+    return ""
 
 def card(ev: dict) -> str:
     kick = KICK.get(ev.get("type"), "On View")
@@ -487,15 +498,18 @@ def calendar(events: list[dict], horizon: int) -> str:
                     f'<div class="mcard__title">{esc(ev.get("title",""))}</div>'
                     f'<div class="mcard__venue">{place}</div></div>'
                     f'<div class="mcard__when">{esc(mwhen)}</div></a>')
-            else:  # routine entry stays a compact row, with a colored type dot
+            else:  # routine entry stays a compact row, now with a small thumbnail
                 more = ""
                 if url and url != "#":
                     ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
                     more = f'<a class="row__more" href="{esc(url)}"{ext}>Info</a>'
                 rwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
+                rimg = ev.get("image")
+                rinner = (f'<img class="row__img" src="{esc(rimg)}" alt="" loading="lazy" '
+                          f'onerror="this.remove()">' if rimg else "")
                 rows.append(
-                    f'<div class="row"><span class="row__title">'
-                    f'<span class="dot dot--{slug}"></span>{esc(ev.get("title",""))}</span>'
+                    f'<div class="row"><span class="row__sq thumb--{slug}">{rinner}</span>'
+                    f'<span class="row__title">{esc(ev.get("title",""))}</span>'
                     f'<span class="row__venue">{esc(ev.get("venue",""))}</span>'
                     f'<span class="row__code">{esc(ev.get("code","SD"))}</span>'
                     f'<span class="row__time">{esc(rwhen)}</span>{more}</div>')
@@ -631,6 +645,7 @@ def render(events: list[dict], horizon: int) -> None:
     s = replace_between(s, "<!-- AUTO:CALENDAR:START -->", "<!-- AUTO:CALENDAR:END -->", cal)
     s = replace_between(s, "<!-- AUTO:UPDATED:START -->", "<!-- AUTO:UPDATED:END -->", f"Updated {stamp}")
     s = replace_between(s, "<!-- AUTO:TIPS:START -->", "<!-- AUTO:TIPS:END -->", tips(events, horizon))
+    s = re.sub(r"style\.css\?v=\d+", f"style.css?v={STYLE_VERSION}", s)
     open(p, "w").write(s)
 
     # index.html — date range, hero standout, and highlight cards
@@ -656,6 +671,7 @@ def render(events: list[dict], horizon: int) -> None:
     s = replace_between(s, "<!-- AUTO:OPENHEAD:START -->", "<!-- AUTO:OPENHEAD:END -->", head)
     s = replace_between(s, "<!-- AUTO:OPENSUB:START -->", "<!-- AUTO:OPENSUB:END -->", sub)
     s = replace_between(s, "<!-- AUTO:HIGHLIGHTS:START -->", "<!-- AUTO:HIGHLIGHTS:END -->", highlights)
+    s = re.sub(r"style\.css\?v=\d+", f"style.css?v={STYLE_VERSION}", s)
     open(p, "w").write(s)
 
     print(f"  homepage: hero + {len(home_picks)} curated picks; onview: full board (calendar + ongoing)")
