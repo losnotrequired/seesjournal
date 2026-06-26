@@ -27,7 +27,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-MAX_TEXT_CHARS = 12000
+MAX_TEXT_CHARS = 16000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
 RENDER_MIN_CHARS = 800   # below this, retry with a headless browser (if --render-js)
@@ -66,6 +66,20 @@ def _og_image(soup, base_url: str):
             return urljoin(base_url, t["content"].strip())
     return None
 
+def _img_url(tag, base_url: str) -> str:
+    """Best real image URL for an <img>, handling common lazy-load attributes."""
+    from urllib.parse import urljoin
+    for attr in ("data-src", "data-lazy-src", "data-original", "src"):
+        v = (tag.get(attr) or "").strip()
+        if v and not v.startswith("data:"):
+            return urljoin(base_url, v)
+    srcset = (tag.get("srcset") or tag.get("data-srcset") or "").strip()
+    if srcset:
+        first = srcset.split(",")[0].strip().split(" ")[0]
+        if first and not first.startswith("data:"):
+            return urljoin(base_url, first)
+    return ""
+
 def _extract_text(html: str, url: str):
     from bs4 import BeautifulSoup
     from urllib.parse import urljoin
@@ -79,6 +93,13 @@ def _extract_text(html: str, url: str):
         href = urljoin(url, (a.get("href") or "").strip())
         if href.startswith("http"):
             a.append(f" [{href}] ")
+    # Append each content image's URL inline (e.g. "{image: https://...}") so the model
+    # can attach the right show photo to each event. Skip logos/icons/sprites.
+    SKIP = re.compile(r"(logo|icon|sprite|avatar|favicon|placeholder|blank|spacer|pixel)", re.I)
+    for im in soup.find_all("img"):
+        src = _img_url(im, url)
+        if src and src.startswith("http") and not SKIP.search(src):
+            im.append(f" {{image: {src}}} ")
     text = re.sub(r"\n{3,}", "\n\n", soup.get_text("\n"))[:MAX_TEXT_CHARS]
     return (text if text.strip() else None), image
 
@@ -144,6 +165,7 @@ Return ONLY a JSON array (no prose, no markdown fences). Each element:
   "type": "one of: opening, reception, closing, art_walk, talk, market, exhibition",
   "url": "direct link to THIS specific event/exhibition page if present in the text; empty string if only a homepage is available or you are unsure",
   "description": "one short sentence, <= 20 words",
+  "image": "URL of this show's image if one is tagged near it like {image: https://...}; else empty string",
   "notable": true/false
 }}
 
@@ -157,6 +179,7 @@ Rules:
 - type: use "closing" for final-day/last-chance shows; "opening"/"reception" for new shows or receptions; "art_walk" for art walks/crawls; "talk" for lectures/tours; "market" for art markets/fairs; otherwise "exhibition".
 - Set "notable" true for museum shows, closings happening soon, and art walks.
 - Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that belongs to THAT specific exhibition/event. Never use the site homepage or a generic listing root — use "" if no specific link is shown for it.
+- Images in the page text are tagged like {image: https://gallery.com/photo.jpg}. For "image", copy the one that clearly belongs to THAT specific exhibition/event (usually the closest tagged image). Leave "" if none is clearly its own.
 - Today's date is {today}. Include current and upcoming items; you may include ongoing exhibitions that are on view now even if they run past {horizon} days.
 - If there are genuinely no visual-art exhibitions or events in the text, return [].
 
@@ -214,6 +237,9 @@ def extract_events(text: str, source_url: str, horizon: int, client) -> list[dic
         it["source"] = source_url
         if not _is_event_url(it.get("url", "")):
             it["url"] = ""
+        img = it.get("image", "")
+        if not (isinstance(img, str) and img.startswith("http")):
+            it["image"] = ""
         out.append(it)
     return out
 
@@ -319,7 +345,9 @@ def card(ev: dict) -> str:
     kick = KICK.get(ev.get("type"), "On View")
     slug = ev.get("type") or "exhibition"
     date = card_date(ev)
-    when = ev.get("time") or ""
+    # a time only makes sense for time-bound events; for an exhibition the "time"
+    # is just the venue's opening hour, so suppress it
+    when = (ev.get("time") or "") if ev.get("type") in {"opening", "reception", "art_walk", "talk", "market"} else ""
     url = event_link(ev)
     ext = "" if url.endswith(".html") or url.startswith("#") else ' target="_blank" rel="noopener"'
     place = esc(ev.get("venue", ""))
@@ -377,24 +405,26 @@ def calendar(events: list[dict], horizon: int) -> str:
                 place = esc(ev.get("venue", ""))
                 if ev.get("neighborhood"):
                     place = (place + " &middot; " if place else "") + esc(ev.get("neighborhood", ""))
+                mwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
                 feats.append(
                     f'<a class="mcard" href="{esc(href)}"{ext}>'
                     f'<div class="mcard__thumb thumb--{slug}">{thumb}</div>'
                     f'<div class="mcard__main"><span class="card__kick kick--{slug}">{esc(label)}</span>'
                     f'<div class="mcard__title">{esc(ev.get("title",""))}</div>'
                     f'<div class="mcard__venue">{place}</div></div>'
-                    f'<div class="mcard__when">{esc(ev.get("time",""))}</div></a>')
+                    f'<div class="mcard__when">{esc(mwhen)}</div></a>')
             else:  # routine entry stays a compact row, with a colored type dot
                 more = ""
                 if url and url != "#":
                     ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
                     more = f'<a class="row__more" href="{esc(url)}"{ext}>Info</a>'
+                rwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
                 rows.append(
                     f'<div class="row"><span class="row__title">'
                     f'<span class="dot dot--{slug}"></span>{esc(ev.get("title",""))}</span>'
                     f'<span class="row__venue">{esc(ev.get("venue",""))}</span>'
                     f'<span class="row__code">{esc(ev.get("code","SD"))}</span>'
-                    f'<span class="row__time">{esc(ev.get("time",""))}</span>{more}</div>')
+                    f'<span class="row__time">{esc(rwhen)}</span>{more}</div>')
         items = "".join(feats) + "".join(rows)
         blocks.append(f'<div class="dayblock"><div class="dayblock__date">'
                       f'<div class="dd">{d.strftime("%d")}</div>'
@@ -637,11 +667,13 @@ def main(argv=None) -> int:
                         evs = extract_events(text, src["url"], args.horizon, client)
                         n = len(evs)
                         print(f"  extracted {n} candidate event(s)")
-                        # attach the page's share image only on focused pages (1-3 events),
-                        # so big aggregator listings don't stamp a generic banner on everything
+                        # If the model didn't find a per-show image, fall back to the page's
+                        # share image — but only on focused pages (1-3 events), so a generic
+                        # banner doesn't get stamped on every card of a big listing page.
                         if image and 1 <= n <= 3:
                             for e in evs:
-                                e.setdefault("image", image)
+                                if not e.get("image"):
+                                    e["image"] = image
                         scraped.extend(evs)
                         status = "ok" if n else "no events"
                     results.append({"name": src["name"], "status": status, "events": n})
