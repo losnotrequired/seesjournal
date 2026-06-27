@@ -10,7 +10,38 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=3">
+<link rel="stylesheet" href="assets/style.css?v=5">
+<style>
+/* Two-week calendar grid — scoped to this page so the shared stylesheet/version is untouched */
+.calwrap{margin-top:18px}
+.calgrid{width:100%;border-collapse:collapse;table-layout:fixed}
+.calgrid th{font-family:'Quicksand',sans-serif;font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--brown);padding:8px 4px;text-align:center;border-bottom:2px solid var(--rule)}
+.calgrid td{vertical-align:top;border:1px solid var(--rule-soft);padding:5px 5px 7px;height:96px;width:14.285%;overflow:hidden}
+.cal__num{font-family:'Lora',serif;font-weight:600;font-size:14px;color:var(--ink-strong);display:block;margin-bottom:3px}
+.calgrid td.is-out{background:#faf9f7}
+.calgrid td.is-out .cal__num{color:#c2bcb2}
+.calgrid td.is-today{background:#eef4fb;box-shadow:inset 0 0 0 2px var(--blue)}
+.calgrid td.is-today .cal__num{color:var(--blue)}
+.calev{display:block;font-size:11px;line-height:1.3;color:#fff;background:var(--blue);border-radius:3px;padding:2px 6px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none}
+.calev:hover{filter:brightness(1.07)}
+.calev--closing{background:var(--brick)}
+.calev--art_walk{background:#7b4fb0}
+.calev--talk{background:#2b8a86}
+.calev--market{background:#b9802b}
+.calev--exhibition{background:#6b6258}
+.calev--opening,.calev--reception{background:var(--blue)}
+.cal__more{display:block;font-size:10px;color:var(--brown);font-style:italic;margin-top:3px}
+.callegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px;font-size:13px;color:var(--ink)}
+.callegend span{display:inline-flex;align-items:center;gap:6px}
+.callegend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+@media(max-width:620px){
+  .calgrid td{height:auto;min-height:62px;padding:3px 2px 4px}
+  .calgrid th{font-size:9.5px;padding:6px 1px;letter-spacing:.01em}
+  .cal__num{font-size:12px}
+  .calev{font-size:9px;padding:1px 3px;border-radius:2px;margin-top:2px}
+  .cal__more{font-size:8.5px}
+}
+</style>
 </head>
 <body id="top">
 
@@ -37,28 +68,26 @@
   <header class="page-hero">
     <h1>On View</h1>
     <p><!-- AUTO:ONVIEWSTATS:START -->
-102 shows on view &middot; 13 opening &middot; 5 art walks
+Listings updating &mdash; new shows are being gathered.
 <!-- AUTO:ONVIEWSTATS:END --></p>
     <p class="note"><!-- AUTO:UPDATED:START -->
-Updated June 26, 2026
+Updated June 27, 2026
 <!-- AUTO:UPDATED:END --></p>
   </header>
+
+  <!-- TWO-WEEK GRID -->
+  <section id="grid">
+    <div class="shead"><span class="tag-blue">Calendar</span><h2>Two Weeks at a Glance</h2><p>every dated listing, laid out by the day</p></div>
+    <!-- AUTO:CALGRID:START -->
+<p class="note">No dated events fall in the next two weeks yet &mdash; see the day-by-day list below for everything currently on view.</p>
+<!-- AUTO:CALGRID:END -->
+  </section>
 
   <!-- ALSO ON VIEW -->
   <section id="also">
     <div class="shead"><span class="tag-blue">Also On View</span><h2>Still Up All Week</h2><p>major shows running through the window</p></div>
     <!-- AUTO:ALSO:START -->
-<div class="grid">
-<a class="card" href="https://oma-online.org/events/summer-art-camp-session-2/" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Jun 22</span><span class="card__when">9:00 am</span></div><div class="card__body"><div class="card__title">Summer Art Camp | Session 2</div><div class="card__venue">Oceanside Museum of Art &middot; Oceanside</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdvisualarts.net/sdvan_new/popdetail.php?id=18945" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date"></span><span class="card__when"></span></div><div class="card__body"><div class="card__title">The Art of Now: Pushing Boundaries</div><div class="card__venue">Union Hall Gallery &middot; San Diego</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdvisualarts.net/sdvan_new/popdetail.php?id=18872" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date"></span><span class="card__when"></span></div><div class="card__body"><div class="card__title">Works in Progress</div><div class="card__venue"> &middot; San Diego</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdvisualarts.net/sdvan_new/popdetail.php?id=18880" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date"></span><span class="card__when"></span></div><div class="card__body"><div class="card__title">Alexander Arshansky Solo: Still Looking</div><div class="card__venue"> &middot; San Diego</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdvisualarts.net/sdvan_new/popdetail.php?id=18795" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date"></span><span class="card__when"></span></div><div class="card__body"><div class="card__title">Sophie Ancel Voyages Feutrés At the San Diego French Alliance</div><div class="card__venue">San Diego French Alliance &middot; San Diego</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdvisualarts.net/sdvan_new/popdetail.php?id=18547" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date"></span><span class="card__when"></span></div><div class="card__body"><div class="card__title">30 Years of Madness</div><div class="card__venue"> &middot; Carlsbad</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdvisualarts.net/sdvan_new/popdetail.php?id=18924" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date"></span><span class="card__when"></span></div><div class="card__body"><div class="card__title">WEST COAST VISIONS EXHIBITION</div><div class="card__venue"> &middot; La Jolla</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdspace4art.org/upcoming/2026/6/6/the-color-of-silence" target="_blank" rel="noopener"><div class="card__panel is-plain has-photo"><img class="card__photo" src="http://www.weebly.com/editor/uploads/5/5/7/2/55721881/custom_themes/179301219890763633/files/North_Park_Art_Gallery.gif" alt="" loading="lazy" onerror="this.closest('.card__panel').classList.remove('has-photo');this.remove()"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Jun 6</span><span class="card__when"></span></div><div class="card__body"><div class="card__title">The Color of Silence</div><div class="card__venue">Art Produce Gallery &middot; North Park</div><span class="card__more">More Info</span></div></a>
-<a class="card" href="https://www.sdvisualarts.net/sdvan_new/popdetail.php?id=18934" target="_blank" rel="noopener"><div class="card__panel is-plain"><span class="card__kick kick--exhibition">On View</span><span class="card__date"></span><span class="card__when"></span></div><div class="card__body"><div class="card__title">Duality: Light and Dark</div><div class="card__venue"> &middot; Escondido</div><span class="card__more">More Info</span></div></a>
-</div>
+<p class="note">No ongoing exhibitions listed right now &mdash; see the day-by-day calendar below.</p>
 <!-- AUTO:ALSO:END -->
   </section>
 
@@ -66,14 +95,7 @@ Updated June 26, 2026
   <section id="days">
     <div class="shead"><span class="tag-blue">Calendar</span><h2>Day by Day</h2><p>ten days, every listing</p></div>
     <!-- AUTO:CALENDAR:START -->
-<div class="dayblock"><div class="dayblock__date"><div class="dd">26</div><div class="dw">Friday</div></div><div class="dayblock__items"><div class="row"><span class="row__title"><span class="dot dot--exhibition"></span>Paper Wisterias</span><span class="row__venue"></span><span class="row__code">OC</span><span class="row__time"></span><a class="row__more" href="https://www.oceansideartwalk.org/calendar/2026-0626-mslr" target="_blank" rel="noopener">Info</a></div><div class="row"><span class="row__title"><span class="dot dot--exhibition"></span>Summer SOULstice Arts + Wellness Festival</span><span class="row__venue"></span><span class="row__code">OC</span><span class="row__time">6:00 pm</span><a class="row__more" href="https://www.oceansideartwalk.org/calendar/2026-0626-soultry" target="_blank" rel="noopener">Info</a></div></div></div>
-<div class="dayblock"><div class="dayblock__date"><div class="dd">27</div><div class="dw">Saturday</div></div><div class="dayblock__items"><a class="mcard" href="https://mingei.org/exhibitions/clearly-indigenous" target="_blank" rel="noopener"><div class="mcard__thumb thumb--opening"></div><div class="mcard__main"><span class="card__kick kick--opening">Opening</span><div class="mcard__title">Clearly Indigenous</div><div class="mcard__venue">Mingei International Museum &middot; Balboa Park</div></div><div class="mcard__when"></div></a><a class="mcard" href="https://www.oceansideartwalk.org/calendar/2026-0627-studioace" target="_blank" rel="noopener"><div class="mcard__thumb thumb--reception"></div><div class="mcard__main"><span class="card__kick kick--reception">Reception</span><div class="mcard__title">Exhibition Reception: Splash of Color</div><div class="mcard__venue">Studio Ace &middot; Oceanside</div></div><div class="mcard__when"></div></a><a class="mcard" href="https://www.josephbellows.com/exhibitions/joni-sternbach" target="_blank" rel="noopener"><div class="mcard__thumb thumb--opening"></div><div class="mcard__main"><span class="card__kick kick--opening">Opening</span><div class="mcard__title">Joni Sternbach: Surfboard</div><div class="mcard__venue">Joseph Bellows Gallery &middot; La Jolla</div></div><div class="mcard__when"></div></a><a class="mcard" href="https://www.niwa.org/natsu-nights" target="_blank" rel="noopener"><div class="mcard__thumb thumb--opening"><img class="mcard__img" src="http://static1.squarespace.com/static/56f43a27906340eeb78d12ed/t/5ef217f8aef65a0d3cae4d19/1592924163945/hp%2Bbanner+PLACEHOLDER.jpg?format=1500w" alt="" loading="lazy" onerror="this.remove()"></div><div class="mcard__main"><span class="card__kick kick--opening">Opening</span><div class="mcard__title">Natsu Nights</div><div class="mcard__venue">Japanese Friendship Garden &amp; Museum &middot; Balboa Park</div></div><div class="mcard__when">5:00 PM</div></a><a class="mcard" href="https://sandiegoartdirectory.com/directory/splash-of-color-exhibition-opening-reception-celebration/" target="_blank" rel="noopener"><div class="mcard__thumb thumb--reception"></div><div class="mcard__main"><span class="card__kick kick--reception">Reception</span><div class="mcard__title">Splash of Color Exhibition Opening Reception &amp; Celebration</div><div class="mcard__venue"> &middot; Oceanside</div></div><div class="mcard__when">5:00 pm</div></a><div class="row"><span class="row__title"><span class="dot dot--talk"></span>Intro to Cyanotyping</span><span class="row__venue">Dear Tomorrow</span><span class="row__code">OC</span><span class="row__time"></span><a class="row__more" href="https://www.oceansideartwalk.org/calendar/2026-0627-tmrw" target="_blank" rel="noopener">Info</a></div><div class="row"><span class="row__title"><span class="dot dot--talk"></span>Museum Lecture | José Hugo Sánchez on Amoxtlis</span><span class="row__venue">California Center for the Arts, Escondido</span><span class="row__code">ES</span><span class="row__time">1:00 pm</span><a class="row__more" href="https://artcenter.org/event/museum-lecture-jose-hugo-sanchez-on-amoxtlis/" target="_blank" rel="noopener">Info</a></div></div></div>
-<div class="dayblock"><div class="dayblock__date"><div class="dd">28</div><div class="dw">Sunday</div></div><div class="dayblock__items"><div class="row"><span class="row__title"><span class="dot dot--talk"></span>Beginner Knitting &amp; Tea</span><span class="row__venue">Dear Tomorrow</span><span class="row__code">OC</span><span class="row__time"></span><a class="row__more" href="https://www.oceansideartwalk.org/calendar/2026-0628-tmrw-2" target="_blank" rel="noopener">Info</a></div><div class="row"><span class="row__title"><span class="dot dot--talk"></span>Focus Tour - Celebrating Women in Art</span><span class="row__venue">Timken Museum of Art</span><span class="row__code">BP</span><span class="row__time">11:00am</span><a class="row__more" href="https://www.timkenmuseum.org/calendar/event/focus-tour-celebrating-women-in-art-10/" target="_blank" rel="noopener">Info</a></div><div class="row"><span class="row__title"><span class="dot dot--exhibition"></span>Portrait Day at Dear Tomorrow</span><span class="row__venue">Dear Tomorrow</span><span class="row__code">OC</span><span class="row__time"></span><a class="row__more" href="https://www.oceansideartwalk.org/calendar/2026-0628-tmrw" target="_blank" rel="noopener">Info</a></div></div></div>
-<div class="dayblock"><div class="dayblock__date"><div class="dd">30</div><div class="dw">Tuesday</div></div><div class="dayblock__items"><div class="row"><span class="row__title"><span class="dot dot--exhibition"></span>Where the Sea Meets the Sky</span><span class="row__venue"></span><span class="row__code">BP</span><span class="row__time">11:00 am</span><a class="row__more" href="https://sandiegoartdirectory.com/directory/where-the-sea-meets-the-sky/" target="_blank" rel="noopener">Info</a></div></div></div>
-<div class="dayblock"><div class="dayblock__date"><div class="dd">01</div><div class="dw">Wednesday</div></div><div class="dayblock__items"><div class="row"><span class="row__title"><span class="dot dot--exhibition"></span>Better Together</span><span class="row__venue">Thumbprint Gallery</span><span class="row__code">LJ</span><span class="row__time"></span><a class="row__more" href="https://www.thumbprintgallery.com/pages/exhibitions" target="_blank" rel="noopener">Info</a></div><div class="row"><span class="row__title"><span class="dot dot--exhibition"></span>Brandon Hurley</span><span class="row__venue">ArtHatch</span><span class="row__code">ES</span><span class="row__time"></span><a class="row__more" href="https://www.thumbprintgallery.com/pages/exhibitions" target="_blank" rel="noopener">Info</a></div><div class="row"><span class="row__title"><span class="dot dot--exhibition"></span>Summer Camp</span><span class="row__venue">Japanese Friendship Garden &amp; Museum</span><span class="row__code">BP</span><span class="row__time"></span><a class="row__more" href="https://www.niwa.org/camp" target="_blank" rel="noopener">Info</a></div></div></div>
-<div class="dayblock"><div class="dayblock__date"><div class="dd">03</div><div class="dw">Friday</div></div><div class="dayblock__items"><a class="mcard" href="https://www.oceansideartwalk.org/" target="_blank" rel="noopener"><div class="mcard__thumb thumb--art_walk"></div><div class="mcard__main"><span class="card__kick kick--art_walk">Art Walk</span><div class="mcard__title">First Friday Art Walk Oceanside</div><div class="mcard__venue">Oceanside Cultural Arts District &middot; Oceanside</div></div><div class="mcard__when">5:00 PM</div></a><a class="mcard" href="https://sandiegoartdirectory.com/directory/first-friday-art-walk-oceanside-in-july/" target="_blank" rel="noopener"><div class="mcard__thumb thumb--art_walk"></div><div class="mcard__main"><span class="card__kick kick--art_walk">Art Walk</span><div class="mcard__title">First Friday Art Walk Oceanside in July</div><div class="mcard__venue"> &middot; Oceanside</div></div><div class="mcard__when">5:00 pm</div></a><a class="mcard" href="https://sandiegoartdirectory.com/directory/first-friday-la-jolla-art-walk-2/" target="_blank" rel="noopener"><div class="mcard__thumb thumb--art_walk"></div><div class="mcard__main"><span class="card__kick kick--art_walk">Art Walk</span><div class="mcard__title">First Friday La Jolla Art Walk</div><div class="mcard__venue"> &middot; La Jolla</div></div><div class="mcard__when">4:00 pm</div></a><a class="mcard" href="https://libertystation.com/events/first-friday-arts-district" target="_blank" rel="noopener"><div class="mcard__thumb thumb--art_walk"></div><div class="mcard__main"><span class="card__kick kick--art_walk">Art Walk</span><div class="mcard__title">First Friday at Arts District</div><div class="mcard__venue">Liberty Station &middot; Liberty Station</div></div><div class="mcard__when"></div></a><a class="mcard" href="https://www.theculturalcalendar.com/events-in-san-diego/-free-admission-oceanside-museum-of-art-j39gh-78jkf-pl4j4-pkw7r-y9csc" target="_blank" rel="noopener"><div class="mcard__thumb thumb--opening"></div><div class="mcard__main"><span class="card__kick kick--opening">Opening</span><div class="mcard__title">Open Invite | Oceanside Museum of Art</div><div class="mcard__venue">Oceanside Museum of Art &middot; Oceanside</div></div><div class="mcard__when">5:00 PM</div></a></div></div>
-<div class="dayblock"><div class="dayblock__date"><div class="dd">04</div><div class="dw">Saturday</div></div><div class="dayblock__items"><a class="mcard" href="https://www.theculturalcalendar.com/events-in-san-diego/-free-admission-womens-museum-of-california-ptd58-j8844-tr5lf-fk63d-frcjk-a7dlx" target="_blank" rel="noopener"><div class="mcard__thumb thumb--opening"></div><div class="mcard__main"><span class="card__kick kick--opening">Opening</span><div class="mcard__title">Open Invite | Women&#x27;s Museum of California</div><div class="mcard__venue">Women&#x27;s Museum of California &middot; Balboa Park</div></div><div class="mcard__when">10:00 AM</div></a><div class="row"><span class="row__title"><span class="dot dot--talk"></span>American Sign Language Enhanced Tour</span><span class="row__venue">Timken Museum of Art</span><span class="row__code">BP</span><span class="row__time">1:00pm</span><a class="row__more" href="https://www.timkenmuseum.org/calendar/event/american-sign-language-enhanced-tour-6/" target="_blank" rel="noopener">Info</a></div></div></div>
-<div class="dayblock"><div class="dayblock__date"><div class="dd">07</div><div class="dw">Tuesday</div></div><div class="dayblock__items"><a class="mcard" href="https://www.theculturalcalendar.com/events-in-san-diego/-free-resident-day-san-diego-model-railroad-museum-fcn4g-5ef66-6kya2-4rchf-rm6gr" target="_blank" rel="noopener"><div class="mcard__thumb thumb--opening"></div><div class="mcard__main"><span class="card__kick kick--opening">Opening</span><div class="mcard__title">Free Resident Day | San Diego Model Railroad Museum</div><div class="mcard__venue">San Diego Model Railroad Museum &middot; Balboa Park</div></div><div class="mcard__when">11:00 AM</div></a><a class="mcard" href="https://www.theculturalcalendar.com/events-in-san-diego/-free-resident-day-san-diego-natural-history-museum-kfhcc-kgfws-z6g6x-fymzn-pwbkb-6w6tg" target="_blank" rel="noopener"><div class="mcard__thumb thumb--opening"></div><div class="mcard__main"><span class="card__kick kick--opening">Opening</span><div class="mcard__title">Free Resident Day | San Diego Natural History Museum</div><div class="mcard__venue">San Diego Natural History Museum &middot; Balboa Park</div></div><div class="mcard__when">10:00 AM</div></a></div></div>
+<p class="note">No dated openings or events in the next 30 days. The picks above are on view now &mdash; check back for new dates.</p>
 <!-- AUTO:CALENDAR:END -->
   </section>
 
@@ -142,9 +164,7 @@ Updated June 26, 2026
     <div class="notewrap">
       <div class="notecol grey"><h3>This Week</h3><ul>
         <!-- AUTO:TIPS:START -->
-<li><b>Art walks this window:</b> First Friday Art Walk Oceanside (Jul 3); First Friday Art Walk Oceanside in July (Jul 3); First Friday La Jolla Art Walk (Jul 3).</li>
-        <li><b>Just opened / opening:</b> Alchemy of Form: Lin Utzon, Anne-Sophie Øgaard, Laura Lappi (Jun 23); ART+CONNECT - heARTSpace (Jun 25); Clearly Indigenous (Jun 27).</li>
-        <li><b>Busiest day:</b> Saturday, Jun 27 &mdash; 7 things on.</li>
+<li>No dated openings or art walks in the next 30 days &mdash; the ongoing shows above are your best bet.</li>
 <!-- AUTO:TIPS:END -->
       </ul></div>
       <div class="notecol dark"><h3>Before You Go</h3><ul>

@@ -27,11 +27,16 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
+STYLE_VERSION = "5"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 16000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
 RENDER_MIN_CHARS = 800   # below this, retry with a headless browser (if --render-js)
 USER_AGENT = "SeesJournalBot/1.0 (+https://seesjournal.com; San Diego art listings, contact hello@seesjournal.com)"
+# Some public-event sites reject unknown bots with a 403. For those we retry once with a
+# common browser UA — these are public listings pages and we still rate-limit politely.
+BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
 CODES = {
     "balboa park":"BP","la jolla":"LJ","barrio logan":"BL","logan heights":"BL",
@@ -65,6 +70,19 @@ def _og_image(soup, base_url: str):
         if t and t.get("content"):
             return urljoin(base_url, t["content"].strip())
     return None
+
+# Image URLs that are site chrome / branding / default share graphics rather than a
+# specific event photo. Matched as delimited path or filename tokens so a real photo
+# like "navarro_18880.jpg" is never dropped for containing "nav".
+_GENERIC_IMG = re.compile(
+    r"(?:^|[/_.\-])(logos?|icons?|sprite|avatar|favicon|placeholder|blank|spacer|pixel|"
+    r"banner|sponsor|header|footer|nav|button|thumb|thumbnail|default|share|ogimage|"
+    r"og[-_]?image|social|brand|branding|fallback|missing|noimage|no[-_]?image|"
+    r"watermark|site[-_]?logo|default[-_]?image)s?(?:$|[/_.\-])", re.I)
+
+def _is_generic_image_url(url: str) -> bool:
+    """True for logos, default/share graphics, and other non-event branding images."""
+    return bool(url) and bool(_GENERIC_IMG.search(url))
 
 def _img_url(tag, base_url: str) -> str:
     """Best real image URL for an <img>, handling common lazy-load attributes."""
@@ -107,6 +125,12 @@ def _fetch_static(url: str):
     import requests
     try:
         r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
+        # If the site blocks our bot (403/401/429), retry once as a browser before giving up.
+        if r.status_code in (401, 403, 429):
+            r = requests.get(url, headers={"User-Agent": BROWSER_UA,
+                                           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                                           "Accept-Language": "en-US,en;q=0.9"},
+                             timeout=REQUEST_TIMEOUT)
         r.raise_for_status()
     except Exception as e:
         print(f"  [warn] fetch failed {url}: {e}")
@@ -124,10 +148,17 @@ def _fetch_rendered(url: str):
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page(user_agent=USER_AGENT)
+            page = browser.new_page(user_agent=BROWSER_UA)
             page.set_default_timeout(30000)
             page.goto(url, wait_until="load")
-            page.wait_for_timeout(2500)  # let client-side JS render the listings
+            # Many calendars (SpinGo, Eventbrite, Tribe) fetch their events by XHR *after*
+            # load. Wait for the network to settle so that data is in the DOM before we read
+            # it; ad/analytics-heavy pages may never idle, so cap it and proceed regardless.
+            try:
+                page.wait_for_load_state("networkidle", timeout=12000)
+            except Exception:
+                pass
+            page.wait_for_timeout(2500)  # a final beat for the widget to paint
             html = page.content()
             browser.close()
     except Exception as e:
@@ -136,26 +167,135 @@ def _fetch_rendered(url: str):
     text, image = _extract_text(html, url)
     return (text, "ok", image) if text else (None, "empty", image)
 
-def fetch_text(url: str, ignore_robots: bool = False, render: bool = False):
+def fetch_text(url: str, ignore_robots: bool = False, render: bool = False, force_render: bool = False):
     """Returns (text, status, image). Polite static GET first; if that yields thin or
-    empty text and rendering is enabled, retries with a headless browser."""
+    empty text and rendering is enabled, retries with a headless browser. force_render
+    renders regardless of static length (for JS pages whose static HTML is mostly nav)."""
     if not ignore_robots and not robots_ok(url):
         print(f"  [skip] robots.txt disallows {url}")
         return None, "robots", None
     text, status, image = _fetch_static(url)
     thin = status != "ok" or (text is not None and len(text) < RENDER_MIN_CHARS)
-    if render and thin:
+    if force_render or (render and thin):
         rtext, rstatus, rimage = _fetch_rendered(url)
-        if rstatus == "ok" and rtext and len(rtext) > len(text or ""):
+        # For an explicit force_render, trust the rendered text even if it isn't longer
+        # (static may be a 16k wall of nav that ties the cap); otherwise require a gain.
+        if rstatus == "ok" and rtext and (force_render or len(rtext) > len(text or "")):
             print(f"  [js] rendered {url} ({len(rtext)} chars)")
             return rtext, "ok", (rimage or image)
     return text, status, image
+
+# Third-party calendar / aggregator / ticketing domains. They're fine as SOURCES, but an event
+# should never LINK to one of them ("another calendar site") — prefer the event's own venue or
+# organizer page, falling back to the page we actually scraped it from.
+_AGGREGATOR_HOSTS = (
+    "sdvisualarts.net", "sandiegoreader.com", "kpbs.org", "sandiegoartdirectory.com",
+    "sandiegomagazine.com", "theculturalcalendar.com", "dosd.com", "sandiego.gov",
+    "mylibrary.digital", "eventbrite.", "allevents.in", "eventful.", "meetup.com",
+    "do619.", "do210.", "ticketmaster.", "eventeny.", "tixr.", "seetickets.", "artsy.net",
+)
+
+def _is_aggregator(url: str) -> bool:
+    """True for third-party calendar/aggregator/ticketing sites we should not link an event to."""
+    return any(h in (url or "").lower() for h in _AGGREGATOR_HOSTS)
+
+def _is_sdvan(url: str) -> bool:
+    """SDVAN specifically — its detail pages carry the show's own gallery link to swap in."""
+    return "sdvisualarts.net" in (url or "").lower()
+
+def _fetch_soup(url: str, ignore_robots: bool):
+    """Fetch a detail page once and return a parsed soup (or None). Short timeout because
+    this can run up to `limit` times per crawl."""
+    try:
+        if not ignore_robots and not robots_ok(url):
+            return None
+        import requests
+        r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=10)
+        if r.status_code != 200:
+            return None
+        from bs4 import BeautifulSoup
+        return BeautifulSoup(r.text, "html.parser")
+    except Exception:
+        return None
+
+def _image_from_soup(soup, base_url: str) -> str:
+    """Best representative image on a detail page: the share image (og:image / twitter:image)
+    if present, else a real content photo from a recognized media folder. Older sites (e.g.
+    SDVAN) set no og:image but store event photos under paths like /images/events/ — target
+    those and skip site chrome (logos, banners, sponsor strips, nav buttons, thumbnails).
+    Skip words match only as delimited path/filename tokens, so a real photo like
+    "navarro_18880.jpg" isn't dropped for containing "nav"."""
+    og = _og_image(soup, base_url)
+    if og and not _is_generic_image_url(og):
+        return og
+    skip = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
+                      r"spacer|pixel|banner|sponsor|header|footer|nav|button|thumb)s?"
+                      r"(?:$|[/_.\-])", re.I)
+    photo_dir = re.compile(r"(/images/events/|/uploads?/|/wp-content/uploads/|/event|"
+                           r"/gallery/|/media/|/artwork|/exhibition|/files/|/photos?/)", re.I)
+    for im in soup.find_all("img"):
+        src = _img_url(im, base_url)
+        if not src or not src.startswith("http") or skip.search(src):
+            continue
+        if photo_dir.search(src):
+            return src
+    return ""
+
+def _canonical_link(soup, base_url: str) -> str:
+    """On an aggregator detail page (SDVAN), find the show's own external link — the gallery's
+    event/site page — so we can link there instead of the aggregator. Picks the most specific
+    (longest) off-site link that isn't the aggregator, a social network, a map, or an email."""
+    from urllib.parse import urljoin
+    skip_host = ("sdvisualarts.net", "facebook.", "instagram.", "twitter.", "x.com",
+                 "youtube.", "youtu.be", "linkedin.", "tiktok.", "pinterest.", "flickr.",
+                 "google.com/maps", "maps.google", "goo.gl", "bit.ly", "paypal.", "eventbrite.")
+    best = ""
+    for a in soup.find_all("a", href=True):
+        href = urljoin(base_url, (a.get("href") or "").strip())
+        low = href.lower()
+        if not low.startswith("http") or low.startswith("mailto"):
+            continue
+        if any(h in low for h in skip_host):
+            continue
+        if len(href) > len(best):   # the gallery's specific exhibition page is usually the longest
+            best = href
+    return best
+
+def enrich_images(events: list, ignore_robots: bool, limit: int = 60) -> None:
+    """Fetch each show's detail page to (a) pull a representative image when the listing
+    didn't supply one, and (b) for SDVAN aggregator links, swap in the gallery's own page so
+    we point at the original source. One fetch per page covers both."""
+    fetched = 0
+    for ev in events:
+        url = ev.get("url") or ""
+        if not _is_event_url(url):
+            continue
+        is_sdvan = _is_sdvan(url)
+        needs_img = not ev.get("image")
+        if not (needs_img or is_sdvan):    # nothing to gain from a fetch
+            continue
+        if fetched >= limit:
+            break
+        soup = _fetch_soup(url, ignore_robots)
+        fetched += 1
+        if soup is not None:
+            if needs_img:
+                img = _image_from_soup(soup, url)
+                if img:
+                    ev["image"] = img
+            if is_sdvan:                    # set link AFTER image (image came from the SDVAN page)
+                canon = _canonical_link(soup, url)
+                if canon:
+                    ev["url"] = canon
+        time.sleep(RATE_LIMIT_SECONDS)
+    print(f"  enriched {fetched} detail page(s)")
+
 
 # ---------------------------------------------------------------- extraction
 EXTRACT_PROMPT = """You are extracting art exhibitions and events from the text of a San Diego art webpage.
 
 Return ONLY a JSON array (no prose, no markdown fences). Each element:
-{{
+{
   "title": "exhibition or event title",
   "venue": "gallery or museum name",
   "neighborhood": "San Diego neighborhood or city (e.g. Balboa Park, La Jolla, Barrio Logan, Oceanside)",
@@ -167,7 +307,7 @@ Return ONLY a JSON array (no prose, no markdown fences). Each element:
   "description": "one short sentence, <= 20 words",
   "image": "URL of this show's image if one is tagged near it like {image: https://...}; else empty string",
   "notable": true/false
-}}
+}
 
 Rules:
 - Extract EVERY visual-art exhibition or event shown on the page: exhibitions currently ON VIEW (ongoing), upcoming openings, receptions, closing/last-chance shows, art walks, artist talks, and art markets.
@@ -178,7 +318,7 @@ Rules:
 - When a date range is shown (e.g. "March 22 - September 13", "through Aug 9", "on view May 1-Aug 1"), you MUST capture BOTH start_date and end_date. Never return only the start date when an end date is present in the text.
 - type: use "closing" for final-day/last-chance shows; "opening"/"reception" for new shows or receptions; "art_walk" for art walks/crawls; "talk" for lectures/tours; "market" for art markets/fairs; otherwise "exhibition".
 - Set "notable" true for museum shows, closings happening soon, and art walks.
-- Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that belongs to THAT specific exhibition/event. Never use the site homepage or a generic listing root — use "" if no specific link is shown for it.
+- Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that belongs to THAT specific exhibition/event, and STRONGLY prefer a link on the same website as this page (the venue's or organizer's own site). Do NOT use a link to a different calendar, listings/aggregator site, or ticketing platform (e.g. Eventbrite, Meetup) even if one is shown. Never use the site homepage or a generic listing root — use "" if no specific same-site link is shown for it.
 - Images in the page text are tagged like {image: https://gallery.com/photo.jpg}. For "image", copy the one that clearly belongs to THAT specific exhibition/event (usually the closest tagged image). Leave "" if none is clearly its own.
 - Today's date is {today}. Include current and upcoming items; you may include ongoing exhibitions that are on view now even if they run past {horizon} days.
 - If there are genuinely no visual-art exhibitions or events in the text, return [].
@@ -217,8 +357,14 @@ def _parse_events_json(raw: str) -> list:
     return []
 
 def extract_events(text: str, source_url: str, horizon: int, client) -> list[dict]:
-    prompt = EXTRACT_PROMPT.format(today=today().isoformat(), horizon=horizon, body=text)
     try:
+        # Build with .replace() (not .format()): the prompt contains literal braces in its
+        # JSON schema and in {image: ...} examples, and str.format() would try to read those
+        # as fields and raise KeyError. .replace() only touches our three real placeholders.
+        prompt = (EXTRACT_PROMPT
+                  .replace("{today}", today().isoformat())
+                  .replace("{horizon}", str(horizon))
+                  .replace("{body}", text))
         msg = client.messages.create(
             model=MODEL, max_tokens=8000,
             messages=[{"role": "user", "content": prompt}],
@@ -273,6 +419,10 @@ def merge(existing: list[dict], scraped: list[dict]) -> list[dict]:
             for f in ("time", "url", "description", "image"):
                 if not cur.get(f) and ev.get(f):
                     cur[f] = ev[f]
+            # If the kept link is a SDVAN aggregator page but this duplicate has the show's
+            # own gallery link, prefer the original source.
+            if _is_aggregator(cur.get("url", "")) and ev.get("url") and not _is_aggregator(ev["url"]):
+                cur["url"] = ev["url"]
             cs, es = cur.get("start_date") or "", ev.get("start_date") or ""
             if es and (not cs or es < cs):
                 cur["start_date"] = es
@@ -316,12 +466,18 @@ def _is_event_url(u: str) -> bool:
     return p.scheme in ("http", "https") and bool(p.path.strip("/"))
 
 def event_link(ev: dict) -> str:
-    """The event's own URL if it's a real deep link; otherwise the source listing
-    page it was scraped from; otherwise '#'."""
+    """The event's own deep link if it's a real, non-calendar page; otherwise the source listing
+    page we scraped it from; otherwise '#'. We never link an event to a *foreign* third-party
+    calendar/aggregator (e.g. a different events site) — those are sources, not destinations. A
+    deep link on the same site we scraped from is fine even if that site is itself an aggregator."""
+    from urllib.parse import urlparse
     u = ev.get("url", "")
-    if _is_event_url(u):
-        return u
     src = ev.get("source", "")
+    src_host = urlparse(src).netloc.lower().replace("www.", "") if isinstance(src, str) and src.startswith("http") else ""
+    if _is_event_url(u):
+        u_host = urlparse(u).netloc.lower().replace("www.", "")
+        if not (_is_aggregator(u) and u_host != src_host):   # reject only foreign calendar links
+            return u
     if isinstance(src, str) and src.startswith("http"):
         return src
     return "#"
@@ -333,23 +489,32 @@ def card_date(ev: dict) -> str:
             return dt.date.fromisoformat(d).strftime("%b %-d")
         except ValueError:
             return d
-    if s and e and s != e:
-        return f"{fmt(s)} \u2013 {fmt(e)}"   # Mar 22 – Aug 9
-    if e and not s:
-        return f"Through {fmt(e)}"
-    if s and not e:
-        return f"From {fmt(s)}"
-    return fmt(s or e)
+    def parse(d):
+        try:
+            return dt.date.fromisoformat(d)
+        except ValueError:
+            return None
+    sd, ed, t = parse(s), parse(e), today()
+    if s and e and s == e:
+        return fmt(s)                                  # single-day event
+    if e:
+        # Anything already on view reads consistently as "Through <close date>".
+        # Upcoming shows (not open yet) keep the full range so the opening date is clear.
+        if sd and sd > t:
+            return f"{fmt(s)} \u2013 {fmt(e)}"          # upcoming: Aug 1 – Sep 1
+        return f"Through {fmt(e)}"                       # on view now: Through Sep 1
+    if s:
+        return f"Opens {fmt(s)}" if (sd and sd > t) else f"From {fmt(s)}"
+    return ""
 
 def card(ev: dict) -> str:
     kick = KICK.get(ev.get("type"), "On View")
     slug = ev.get("type") or "exhibition"
     date = card_date(ev)
-    # a time only makes sense for time-bound events; for an exhibition the "time"
-    # is just the venue's opening hour, so suppress it
-    when = (ev.get("time") or "") if ev.get("type") in {"opening", "reception", "art_walk", "talk", "market"} else ""
     url = event_link(ev)
-    ext = "" if url.endswith(".html") or url.startswith("#") else ' target="_blank" rel="noopener"'
+    if url == "#":                       # linkless event -> send to the full listing, not a dead #
+        url = "onview.html"
+    ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
     place = esc(ev.get("venue", ""))
     if ev.get("neighborhood"):
         place = (place + " &middot; " if place else "") + esc(ev.get("neighborhood", ""))
@@ -361,8 +526,7 @@ def card(ev: dict) -> str:
     return (f'<a class="card" href="{esc(url)}"{ext}>'
             f'<div class="card__panel {panel}">{photo}'
             f'<span class="card__kick kick--{slug}">{esc(kick)}</span>'
-            f'<span class="card__date">{esc(date)}</span>'
-            f'<span class="card__when">{esc(when)}</span></div>'
+            f'<span class="card__date">{esc(date)}</span></div>'
             f'<div class="card__body"><div class="card__title">{esc(ev.get("title",""))}</div>'
             f'<div class="card__venue">{place}</div>'
             f'<span class="card__more">More Info</span></div></a>')
@@ -413,24 +577,102 @@ def calendar(events: list[dict], horizon: int) -> str:
                     f'<div class="mcard__title">{esc(ev.get("title",""))}</div>'
                     f'<div class="mcard__venue">{place}</div></div>'
                     f'<div class="mcard__when">{esc(mwhen)}</div></a>')
-            else:  # routine entry stays a compact row, with a colored type dot
-                more = ""
+            else:  # routine entry: a compact, FULLY-CLICKABLE row (whole tile links; no "Info" arrow)
+                rwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
+                rimg = ev.get("image")
+                rinner = (f'<img class="row__img" src="{esc(rimg)}" alt="" loading="lazy" '
+                          f'onerror="this.remove()">' if rimg else "")
+                inner = (f'<span class="row__sq thumb--{slug}">{rinner}</span>'
+                         f'<span class="row__title">{esc(ev.get("title",""))}</span>'
+                         f'<span class="row__venue">{esc(ev.get("venue") or ev.get("neighborhood") or "")}</span>'
+                         f'<span class="row__time">{esc(rwhen)}</span>')
                 if url and url != "#":
                     ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
-                    more = f'<a class="row__more" href="{esc(url)}"{ext}>Info</a>'
-                rwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
-                rows.append(
-                    f'<div class="row"><span class="row__title">'
-                    f'<span class="dot dot--{slug}"></span>{esc(ev.get("title",""))}</span>'
-                    f'<span class="row__venue">{esc(ev.get("venue",""))}</span>'
-                    f'<span class="row__code">{esc(ev.get("code","SD"))}</span>'
-                    f'<span class="row__time">{esc(rwhen)}</span>{more}</div>')
+                    rows.append(f'<a class="row" href="{esc(url)}"{ext}>{inner}</a>')
+                else:
+                    rows.append(f'<div class="row">{inner}</div>')
         items = "".join(feats) + "".join(rows)
         blocks.append(f'<div class="dayblock"><div class="dayblock__date">'
                       f'<div class="dd">{d.strftime("%d")}</div>'
                       f'<div class="dw">{d.strftime("%A")}</div></div>'
                       f'<div class="dayblock__items">{items}</div></div>')
     return "\n".join(blocks)
+
+WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+def calendar_grid(events: list[dict], days: int = 14) -> str:
+    """A weekday-aligned, month-style grid for the next ~two weeks. Each day cell lists its events
+    as compact colored bars (closing shows sit on their end date, everything else on its start
+    date). The grid starts on the Sunday on/before today and runs enough whole weeks to cover the
+    next `days` days; cells outside that window are dimmed and today is highlighted."""
+    import math
+    t0 = today()
+    start = t0 - dt.timedelta(days=(t0.weekday() + 1) % 7)   # Sunday on/before today
+    last_target = t0 + dt.timedelta(days=days - 1)
+    weeks = max(1, math.ceil(((last_target - start).days + 1) / 7))
+    last_day = start + dt.timedelta(days=weeks * 7 - 1)
+
+    by_day: dict[str, list[dict]] = {}
+    for ev in events:
+        typ = ev.get("type", "")
+        key = (ev.get("end_date") or "") if typ == "closing" else (ev.get("start_date") or "")
+        try:
+            d = dt.date.fromisoformat(key)
+        except ValueError:
+            continue
+        if start <= d <= last_day:
+            by_day.setdefault(key, []).append(ev)
+    rank = {"art_walk": 0, "opening": 1, "reception": 1, "closing": 2, "talk": 3, "market": 4, "exhibition": 5}
+    for k in by_day:
+        by_day[k].sort(key=lambda e: (rank.get(e.get("type"), 9), e.get("title", "")))
+
+    if not any(by_day.values()):
+        return ('<p class="note">No dated events fall in the next two weeks yet &mdash; '
+                'see the day-by-day list below for everything currently on view.</p>')
+
+    SHOWN = 4
+    rows = []
+    cur = start
+    for _ in range(weeks):
+        cells = []
+        for _ in range(7):
+            iso = cur.isoformat()
+            cls = []
+            if cur == t0:
+                cls.append("is-today")
+            if cur < t0 or cur > last_target:
+                cls.append("is-out")
+            num = cur.strftime("%-d") if cur.day != 1 else cur.strftime("%b %-d")
+            evs = by_day.get(iso, [])
+            bars = []
+            for ev in evs[:SHOWN]:
+                typ = ev.get("type") or "exhibition"
+                link = event_link(ev)
+                href = link if (link and link != "#") else "onview.html"
+                ext = "" if href.endswith(".html") else ' target="_blank" rel="noopener"'
+                tm = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
+                label = (tm + " " if tm else "") + (ev.get("title") or ev.get("venue") or "Event")
+                bars.append(f'<a class="calev calev--{typ}" href="{esc(href)}"{ext} '
+                            f'title="{esc(ev.get("title",""))}">{esc(label)}</a>')
+            if len(evs) > SHOWN:
+                bars.append(f'<span class="cal__more">+{len(evs) - SHOWN} more</span>')
+            attr = (' class="' + " ".join(cls) + '"') if cls else ""
+            cells.append(f'<td{attr}><span class="cal__num">{num}</span>{"".join(bars)}</td>')
+            cur += dt.timedelta(days=1)
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+
+    head = "".join(f"<th>{w}</th>" for w in WEEKDAYS)
+    legend = (
+        '<div class="callegend">'
+        '<span><i style="background:var(--blue)"></i>Opening / Reception</span>'
+        '<span><i style="background:var(--brick)"></i>Closing</span>'
+        '<span><i style="background:#7b4fb0"></i>Art Walk</span>'
+        '<span><i style="background:#2b8a86"></i>Talk</span>'
+        '<span><i style="background:#b9802b"></i>Market</span>'
+        '<span><i style="background:#6b6258"></i>Exhibition</span>'
+        '</div>')
+    return (f'<div class="calwrap"><table class="calgrid"><thead><tr>{head}</tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table>{legend}</div>')
 
 def replace_between(text: str, start: str, end: str, inner: str) -> str:
     pat = re.compile(re.escape(start) + r".*?" + re.escape(end), re.DOTALL)
@@ -446,10 +688,26 @@ def daterange_str(horizon: int) -> str:
 
 def hero_event(events: list[dict]):
     """The single event chosen for the homepage hero (an art walk in the window,
-    otherwise the soonest pick, otherwise the soonest event)."""
+    otherwise the soonest pick, otherwise the soonest event). Within that pool,
+    prefer one that has an image so the standout can show a photo."""
     walks = [e for e in events if e.get("type") == "art_walk"]
     pool = walks or [e for e in events if e.get("is_pick")] or events
-    return sorted(pool, key=lambda e: (e.get("start_date") or "9999"))[0] if pool else None
+    if not pool:
+        return None
+    ranked = sorted(pool, key=lambda e: (e.get("start_date") or "9999"))
+    withimg = [e for e in ranked if e.get("image")]
+    return withimg[0] if withimg else ranked[0]
+
+def hero_photo(ev) -> str:
+    """Background photo + legibility scrim for the standout hero. Empty when the
+    event has no image, so the CSS brown gradient shows through as the fallback.
+    If the image 404s, onerror removes both the img and the scrim."""
+    img = ev.get("image") if ev else None
+    if not img:
+        return ""
+    return (f'<img class="hero__photo" src="{esc(img)}" alt="" '
+            f"onerror=\"var s=this.nextElementSibling; if(s){{s.remove();}} this.remove();\">"
+            f'<span class="hero__scrim"></span>')
 
 def hero_inner(events: list[dict]) -> str | None:
     ev = hero_event(events)
@@ -537,7 +795,128 @@ def tips(events: list[dict], horizon: int) -> str:
                      f"&mdash; the ongoing shows above are your best bet.</li>")
     return "\n        ".join(items)
 
+# ---------------------------------------------------------------- de-duplication
+# Some shows are listed by more than one source with slightly different wording
+# (e.g. "Exhibition Reception: Splash of Color" vs "Splash of Color Exhibition
+# Opening Reception & Celebration", or "Clearly Indigenous" vs its full subtitle
+# "Clearly Indigenous: Native Visions Reimagined in Glass"). The exact title+venue
+# key in merge() can't catch those, so we fold them here, just before rendering.
+# Two entries collapse ONLY when they share the same anchor date (so an opening
+# and a separate closing-day entry are never merged), the same place, and the same
+# distinctive title words. When folding, the richest fields win — in particular the
+# hours, if any one copy has them.
+_GENERIC_TITLE_WORDS = {
+    "exhibition", "exhibit", "exhibitions", "reception", "opening", "openings",
+    "closing", "celebration", "celebrations", "gala", "preview", "premiere",
+    "artist", "talk", "tour", "market", "presents", "present", "presenting",
+    "featuring", "feat", "the", "a", "an", "of", "and", "with", "at", "in",
+    "on", "for", "art", "arts", "juried", "annual", "free", "party", "members",
+    "member", "fundraiser", "benefit", "new", "amp", "to", "by",
+}
+_TYPE_PRIORITY = ["art_walk", "opening", "reception", "closing", "market", "talk", "exhibition"]
+
+def _title_tokens(title: str) -> set:
+    t = re.sub(r"[^a-z0-9]+", " ", (title or "").lower())
+    return {w for w in t.split() if w and w not in _GENERIC_TITLE_WORDS}
+
+def _place_match(a: dict, b: dict) -> bool:
+    va = re.sub(r"[^a-z0-9]+", "", (a.get("venue") or "").lower())
+    vb = re.sub(r"[^a-z0-9]+", "", (b.get("venue") or "").lower())
+    na = re.sub(r"[^a-z0-9]+", "", (a.get("neighborhood") or "").lower())
+    nb = re.sub(r"[^a-z0-9]+", "", (b.get("neighborhood") or "").lower())
+    if va and vb and (va == vb or va in vb or vb in va):
+        return True
+    if na and nb and na == nb:
+        return True
+    return False
+
+def _anchor_date(ev: dict) -> str:
+    return (ev.get("end_date") or "") if ev.get("type") == "closing" else (ev.get("start_date") or "")
+
+def _same_event(a: dict, b: dict) -> bool:
+    if _anchor_date(a) != _anchor_date(b):
+        return False
+    if not _place_match(a, b):
+        return False
+    ta, tb = _title_tokens(a.get("title", "")), _title_tokens(b.get("title", ""))
+    if not ta or not tb:
+        return False
+    if ta == tb:
+        return True
+    small, big = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    # the smaller title's words are fully contained in the larger's; require real
+    # signal so a one-word generic core can't swallow an unrelated show
+    if small <= big and (len(small) >= 2 or (len(small) == 1 and len(next(iter(small))) >= 4)):
+        return True
+    return False
+
+def _merge_group(group: list[dict]) -> dict:
+    if len(group) == 1:
+        return group[0]
+    def tprio(ev):
+        t = ev.get("type", "exhibition")
+        return _TYPE_PRIORITY.index(t) if t in _TYPE_PRIORITY else len(_TYPE_PRIORITY)
+    base = dict(min(group, key=tprio))                  # most actionable type wins
+    def first(field):
+        for e in group:
+            if e.get(field):
+                return e[field]
+        return ""
+    titles = [e.get("title", "").strip() for e in group if e.get("title", "").strip()]
+    if titles:
+        base["title"] = min(titles, key=len)            # cleanest (shortest) title
+    venues = [e.get("venue", "").strip() for e in group if e.get("venue", "").strip()]
+    if venues:
+        base["venue"] = max(venues, key=len)            # most specific venue name
+    base["time"] = first("time")                        # KEEP the hours if any copy has them
+    base["neighborhood"] = first("neighborhood") or base.get("neighborhood", "")
+    base["image"] = first("image")
+    descs = [e.get("description", "") for e in group if e.get("description")]
+    if descs:
+        base["description"] = max(descs, key=len)
+    best = next((e["url"] for e in group if _is_event_url(e.get("url", "")) and not _is_aggregator(e["url"])), "")
+    if not best:
+        best = next((e["url"] for e in group if _is_event_url(e.get("url", ""))), "")
+    if not best:
+        best = first("url")
+    base["url"] = best
+    if not base.get("source"):
+        base["source"] = first("source")
+    base["code"] = code_for(base.get("neighborhood", ""))
+    return base
+
+def collapse_duplicates(events: list[dict]) -> list[dict]:
+    """Fold entries that are the same real-world event listed by multiple sources."""
+    groups: list[list[dict]] = []
+    for ev in events:
+        for g in groups:
+            if _same_event(g[0], ev):
+                g.append(ev)
+                break
+        else:
+            groups.append([ev])
+    return [_merge_group(g) for g in groups]
+
+def drop_generic_images(events: list[dict]) -> None:
+    """Blank images that are site branding / default share graphics rather than a real event
+    photo. Two signals: (1) the URL matches a generic logo/default/share pattern; (2) the same
+    image is reused across 2+ events — a real show photo is unique, but a site default (e.g. an
+    aggregator's own logo, like DoSD's) gets stamped on many events. Cleared images fall back to
+    the card's colored panel."""
+    from collections import Counter
+    for e in events:
+        if _is_generic_image_url(e.get("image", "")):
+            e["image"] = ""
+    counts = Counter(e["image"] for e in events if e.get("image"))
+    shared = {u for u, c in counts.items() if c >= 2}
+    if shared:
+        for e in events:
+            if e.get("image") in shared:
+                e["image"] = ""
+
 def render(events: list[dict], horizon: int) -> None:
+    events = collapse_duplicates(events)  # fold same-event duplicates from multiple sources
+    drop_generic_images(events)           # blank site-logo / default / reused-across-events photos
     picks = sorted([e for e in events if e.get("is_pick")],
                    key=lambda e: (e.get("start_date") or "9999"))[:8]
     stamp = today().strftime("%B %-d, %Y")
@@ -546,6 +925,7 @@ def render(events: list[dict], horizon: int) -> None:
     p = os.path.join(ROOT, "onview.html"); s = open(p).read()
     stats = onview_stats(events) or "Listings updating &mdash; new shows are being gathered."
     s = replace_between(s, "<!-- AUTO:ONVIEWSTATS:START -->", "<!-- AUTO:ONVIEWSTATS:END -->", stats)
+    s = replace_between(s, "<!-- AUTO:CALGRID:START -->", "<!-- AUTO:CALGRID:END -->", calendar_grid(events, 14))
     # Also On View: ongoing exhibitions already open (deep links via event_link, never stale)
     also = [e for e in events if e.get("type") == "exhibition"
             and (not e.get("start_date") or e["start_date"] < today().isoformat())]
@@ -557,6 +937,7 @@ def render(events: list[dict], horizon: int) -> None:
     s = replace_between(s, "<!-- AUTO:CALENDAR:START -->", "<!-- AUTO:CALENDAR:END -->", cal)
     s = replace_between(s, "<!-- AUTO:UPDATED:START -->", "<!-- AUTO:UPDATED:END -->", f"Updated {stamp}")
     s = replace_between(s, "<!-- AUTO:TIPS:START -->", "<!-- AUTO:TIPS:END -->", tips(events, horizon))
+    s = re.sub(r"style\.css\?v=\d+", f"style.css?v={STYLE_VERSION}", s)
     open(p, "w").write(s)
 
     # index.html — date range, hero standout, and highlight cards
@@ -569,6 +950,7 @@ def render(events: list[dict], horizon: int) -> None:
         '<p class="hero__cat">Openings, closings, and art walks will appear here shortly.</p>'
         '<a class="pill" href="onview.html">Browse all</a>')
     s = replace_between(s, "<!-- AUTO:HERO:START -->", "<!-- AUTO:HERO:END -->", hero)
+    s = replace_between(s, "<!-- AUTO:HEROIMG:START -->", "<!-- AUTO:HEROIMG:END -->", hero_photo(hev))
     ordered = picks + [e for e in events if not e.get("is_pick")]
     home_picks = [e for e in ordered if e is not hev][:6]
     if home_picks:
@@ -582,6 +964,7 @@ def render(events: list[dict], horizon: int) -> None:
     s = replace_between(s, "<!-- AUTO:OPENHEAD:START -->", "<!-- AUTO:OPENHEAD:END -->", head)
     s = replace_between(s, "<!-- AUTO:OPENSUB:START -->", "<!-- AUTO:OPENSUB:END -->", sub)
     s = replace_between(s, "<!-- AUTO:HIGHLIGHTS:START -->", "<!-- AUTO:HIGHLIGHTS:END -->", highlights)
+    s = re.sub(r"style\.css\?v=\d+", f"style.css?v={STYLE_VERSION}", s)
     open(p, "w").write(s)
 
     print(f"  homepage: hero + {len(home_picks)} curated picks; onview: full board (calendar + ongoing)")
@@ -660,7 +1043,8 @@ def main(argv=None) -> int:
                     print(f"- {src['name']}")
                     ig = args.ignore_robots or src.get("ignore_robots", False)
                     rj = args.render_js or src.get("render_js", False)
-                    text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj)
+                    fr = src.get("force_render", False)
+                    text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj, force_render=fr)
                     print(f"  fetched {len(text or '')} chars (status: {status})")
                     n = 0
                     if text:
@@ -670,7 +1054,7 @@ def main(argv=None) -> int:
                         # If the model didn't find a per-show image, fall back to the page's
                         # share image — but only on focused pages (1-3 events), so a generic
                         # banner doesn't get stamped on every card of a big listing page.
-                        if image and 1 <= n <= 3:
+                        if image and 1 <= n <= 3 and not _is_generic_image_url(image):
                             for e in evs:
                                 if not e.get("image"):
                                     e["image"] = image
@@ -686,6 +1070,9 @@ def main(argv=None) -> int:
 
     kept = [e for e in events if in_window(e, args.horizon)]
     kept.sort(key=lambda e: (e.get("start_date") or "9999", e.get("title", "")))
+
+    if not args.no_fetch:
+        enrich_images(kept, args.ignore_robots)
 
     json.dump({"updated": today().isoformat(), "window_days": args.horizon, "events": kept},
               open(DATA, "w"), indent=2, ensure_ascii=False)
