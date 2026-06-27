@@ -27,7 +27,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "6"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "7"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 16000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -323,7 +323,7 @@ Return ONLY a JSON array (no prose, no markdown fences). Each element:
 
 Rules:
 - Extract EVERY visual-art exhibition or event shown on the page: exhibitions currently ON VIEW (ongoing), upcoming openings, receptions, closing/last-chance shows, art walks, artist talks, and art markets.
-- Include a show even if only its title and a date range are listed (e.g. "Artist Name, through August 9"). If a current exhibition has no explicit end date, set end_date to "".
+- Include a show even if only its title and a date range are listed (e.g. "Artist Name, through August 9"). NOTE: an item with an empty end_date is treated as a SINGLE-DAY event on its start_date, so leave end_date "" only for genuinely one-day events (reception, opening, talk, art walk, market); whenever an exhibition's closing/end date is stated anywhere in the text, you MUST capture it as end_date.
 - Do NOT skip a show just because it opened before today — if it is still on view, include it.
 - Ignore site navigation, ads, newsletter signups, store/shop product pages, and unrelated news articles.
 - Do NOT include classes, workshops, courses, camps, summer or youth programs, children's activities, member-only events, fundraisers, or galas. Only public art exhibitions and art events (openings, receptions, art walks, artist talks, art markets).
@@ -368,6 +368,28 @@ def _parse_events_json(raw: str) -> list:
             pass
     return []
 
+_TRAIL_MONTHS = (r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
+                 r"aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
+_TRAIL_DATE = re.compile(
+    r"\s*[-\u2013\u2014]\s*"                                          # " - " / " \u2013 " / "-"
+    r"(?:(?:%s)\.?\s*\d{0,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?"          # Month [day][, year]
+    r"|\d{1,2}/\d{1,2}(?:/\d{2,4})?)\s*$" % _TRAIL_MONTHS, re.I)
+
+def clean_title(t: str) -> str:
+    """Strip a date that aggregators bake onto the end of a recurring event's title, e.g.
+    'First Friday Open Studios ... -July 3' or '... - November 7, 2025'. The real date lives
+    in the date field; leaving it in the title causes mismatches like the standout showing
+    '-July 3' while its 'More Info' link points to an older instance of the same series."""
+    orig = (t or "").strip()
+    t = orig
+    for _ in range(3):                                  # peel stacked suffixes ("- Nov - July 3")
+        nt = _TRAIL_DATE.sub("", t).strip()
+        nt = re.sub(r"[\s\-\u2013\u2014:;,]+$", "", nt).strip()
+        if nt == t:
+            break
+        t = nt
+    return t if len(t) >= 3 else orig                   # never strip a title down to nothing
+
 def extract_events(text: str, source_url: str, horizon: int, client) -> list[dict]:
     try:
         # Build with .replace() (not .format()): the prompt contains literal braces in its
@@ -391,6 +413,9 @@ def extract_events(text: str, source_url: str, horizon: int, client) -> list[dic
     out = []
     for it in items if isinstance(items, list) else []:
         if not isinstance(it, dict) or not it.get("title"):
+            continue
+        it["title"] = clean_title(it["title"])         # drop any date baked onto the title end
+        if not it["title"]:
             continue
         it["source"] = source_url
         if not _is_event_url(it.get("url", "")):
@@ -451,8 +476,9 @@ def in_window(ev: dict, horizon: int) -> bool:
     ed = ev.get("end_date") or ""
     try:
         s = dt.date.fromisoformat(sd) if sd else t0
-        # no end date -> treat as ongoing/open-ended (still on view through the window)
-        e = dt.date.fromisoformat(ed) if ed else max(s, t1)
+        # RULE: an event with no end date is a single-day event (it occurs on its start date),
+        # so a past one has ended. Only an explicit end date keeps a show on view as "ongoing".
+        e = dt.date.fromisoformat(ed) if ed else s
     except ValueError:
         return True  # keep undated events rather than silently drop
     return s <= t1 and e >= t0
@@ -699,11 +725,17 @@ def daterange_str(horizon: int) -> str:
     return f"{t0.strftime('%B %-d, %Y')} &ndash; {t1.strftime('%B %-d, %Y')}"
 
 def hero_event(events: list[dict]):
-    """The single event chosen for the homepage hero (an art walk in the window,
-    otherwise the soonest pick, otherwise the soonest event). Within that pool,
-    prefer one that has an image so the standout can show a photo."""
-    walks = [e for e in events if e.get("type") == "art_walk"]
-    pool = walks or [e for e in events if e.get("is_pick")] or events
+    """The single event chosen for the homepage hero (an art walk in the window, otherwise
+    the soonest pick, otherwise the soonest event). Aggregator-*discovered* events are kept
+    out of the headline: their dates can be projected forward (recurring series) and their
+    links can resolve to a stale instance, which makes the standout look wrong. Within the
+    chosen pool, prefer one that has an image so the standout can show a photo."""
+    def canonical(e):
+        return not _is_aggregator(e.get("source", "")) and not _is_aggregator(e.get("url", ""))
+    walks = [e for e in events if e.get("type") == "art_walk" and canonical(e)]
+    picks = [e for e in events if e.get("is_pick") and canonical(e)]
+    canon = [e for e in events if canonical(e)]
+    pool = walks or picks or canon or events       # fall back to all only if nothing canonical
     if not pool:
         return None
     ranked = sorted(pool, key=lambda e: (e.get("start_date") or "9999"))
@@ -1061,6 +1093,9 @@ def main(argv=None) -> int:
             # rather than crashing every run until someone hand-fixes the JSON
             print(f"  [warn] {DATA} is unreadable ({e}); starting from an empty set")
             existing = []
+    for e in existing:                        # clean any date baked onto cached titles too
+        if isinstance(e, dict) and e.get("title"):
+            e["title"] = clean_title(e["title"])
 
     if args.no_fetch:
         events = existing
@@ -1106,6 +1141,13 @@ def main(argv=None) -> int:
                 finally:
                     time.sleep(RATE_LIMIT_SECONDS)
             events = merge(existing, scraped) if scraped else existing
+
+    # RULE: an event with no end date is a single-day event. Anchor end_date to start_date so
+    # it shows on that one day across cards/calendar/grid and a past one drops out of the window
+    # (rather than lingering forever as an "ongoing" show). Applies to cached and scraped events.
+    for e in events:
+        if isinstance(e, dict) and e.get("start_date") and not e.get("end_date"):
+            e["end_date"] = e["start_date"]
 
     kept = [e for e in events if in_window(e, args.horizon)]
     kept.sort(key=lambda e: (e.get("start_date") or "9999", e.get("title", "")))
