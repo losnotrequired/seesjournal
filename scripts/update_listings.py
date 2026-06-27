@@ -27,7 +27,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "4"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "5"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 16000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -154,17 +154,20 @@ def _fetch_rendered(url: str):
     text, image = _extract_text(html, url)
     return (text, "ok", image) if text else (None, "empty", image)
 
-def fetch_text(url: str, ignore_robots: bool = False, render: bool = False):
+def fetch_text(url: str, ignore_robots: bool = False, render: bool = False, force_render: bool = False):
     """Returns (text, status, image). Polite static GET first; if that yields thin or
-    empty text and rendering is enabled, retries with a headless browser."""
+    empty text and rendering is enabled, retries with a headless browser. force_render
+    renders regardless of static length (for JS pages whose static HTML is mostly nav)."""
     if not ignore_robots and not robots_ok(url):
         print(f"  [skip] robots.txt disallows {url}")
         return None, "robots", None
     text, status, image = _fetch_static(url)
     thin = status != "ok" or (text is not None and len(text) < RENDER_MIN_CHARS)
-    if render and thin:
+    if force_render or (render and thin):
         rtext, rstatus, rimage = _fetch_rendered(url)
-        if rstatus == "ok" and rtext and len(rtext) > len(text or ""):
+        # For an explicit force_render, trust the rendered text even if it isn't longer
+        # (static may be a 16k wall of nav that ties the cap); otherwise require a gain.
+        if rstatus == "ok" and rtext and (force_render or len(rtext) > len(text or "")):
             print(f"  [js] rendered {url} ({len(rtext)} chars)")
             return rtext, "ok", (rimage or image)
     return text, status, image
@@ -475,9 +478,6 @@ def card(ev: dict) -> str:
     kick = KICK.get(ev.get("type"), "On View")
     slug = ev.get("type") or "exhibition"
     date = card_date(ev)
-    # a time only makes sense for time-bound events; for an exhibition the "time"
-    # is just the venue's opening hour, so suppress it
-    when = (ev.get("time") or "") if ev.get("type") in {"opening", "reception", "art_walk", "talk", "market"} else ""
     url = event_link(ev)
     ext = "" if url.endswith(".html") or url.startswith("#") else ' target="_blank" rel="noopener"'
     place = esc(ev.get("venue", ""))
@@ -491,8 +491,7 @@ def card(ev: dict) -> str:
     return (f'<a class="card" href="{esc(url)}"{ext}>'
             f'<div class="card__panel {panel}">{photo}'
             f'<span class="card__kick kick--{slug}">{esc(kick)}</span>'
-            f'<span class="card__date">{esc(date)}</span>'
-            f'<span class="card__when">{esc(when)}</span></div>'
+            f'<span class="card__date">{esc(date)}</span></div>'
             f'<div class="card__body"><div class="card__title">{esc(ev.get("title",""))}</div>'
             f'<div class="card__venue">{place}</div>'
             f'<span class="card__more">More Info</span></div></a>')
@@ -579,10 +578,26 @@ def daterange_str(horizon: int) -> str:
 
 def hero_event(events: list[dict]):
     """The single event chosen for the homepage hero (an art walk in the window,
-    otherwise the soonest pick, otherwise the soonest event)."""
+    otherwise the soonest pick, otherwise the soonest event). Within that pool,
+    prefer one that has an image so the standout can show a photo."""
     walks = [e for e in events if e.get("type") == "art_walk"]
     pool = walks or [e for e in events if e.get("is_pick")] or events
-    return sorted(pool, key=lambda e: (e.get("start_date") or "9999"))[0] if pool else None
+    if not pool:
+        return None
+    ranked = sorted(pool, key=lambda e: (e.get("start_date") or "9999"))
+    withimg = [e for e in ranked if e.get("image")]
+    return withimg[0] if withimg else ranked[0]
+
+def hero_photo(ev) -> str:
+    """Background photo + legibility scrim for the standout hero. Empty when the
+    event has no image, so the CSS brown gradient shows through as the fallback.
+    If the image 404s, onerror removes both the img and the scrim."""
+    img = ev.get("image") if ev else None
+    if not img:
+        return ""
+    return (f'<img class="hero__photo" src="{esc(img)}" alt="" '
+            f"onerror=\"var s=this.nextElementSibling; if(s){{s.remove();}} this.remove();\">"
+            f'<span class="hero__scrim"></span>')
 
 def hero_inner(events: list[dict]) -> str | None:
     ev = hero_event(events)
@@ -703,6 +718,7 @@ def render(events: list[dict], horizon: int) -> None:
         '<p class="hero__cat">Openings, closings, and art walks will appear here shortly.</p>'
         '<a class="pill" href="onview.html">Browse all</a>')
     s = replace_between(s, "<!-- AUTO:HERO:START -->", "<!-- AUTO:HERO:END -->", hero)
+    s = replace_between(s, "<!-- AUTO:HEROIMG:START -->", "<!-- AUTO:HEROIMG:END -->", hero_photo(hev))
     ordered = picks + [e for e in events if not e.get("is_pick")]
     home_picks = [e for e in ordered if e is not hev][:6]
     if home_picks:
@@ -795,7 +811,8 @@ def main(argv=None) -> int:
                     print(f"- {src['name']}")
                     ig = args.ignore_robots or src.get("ignore_robots", False)
                     rj = args.render_js or src.get("render_js", False)
-                    text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj)
+                    fr = src.get("force_render", False)
+                    text, status, image = fetch_text(src["url"], ignore_robots=ig, render=rj, force_render=fr)
                     print(f"  fetched {len(text or '')} chars (status: {status})")
                     n = 0
                     if text:
