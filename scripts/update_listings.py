@@ -71,6 +71,19 @@ def _og_image(soup, base_url: str):
             return urljoin(base_url, t["content"].strip())
     return None
 
+# Image URLs that are site chrome / branding / default share graphics rather than a
+# specific event photo. Matched as delimited path or filename tokens so a real photo
+# like "navarro_18880.jpg" is never dropped for containing "nav".
+_GENERIC_IMG = re.compile(
+    r"(?:^|[/_.\-])(logos?|icons?|sprite|avatar|favicon|placeholder|blank|spacer|pixel|"
+    r"banner|sponsor|header|footer|nav|button|thumb|thumbnail|default|share|ogimage|"
+    r"og[-_]?image|social|brand|branding|fallback|missing|noimage|no[-_]?image|"
+    r"watermark|site[-_]?logo|default[-_]?image)s?(?:$|[/_.\-])", re.I)
+
+def _is_generic_image_url(url: str) -> bool:
+    """True for logos, default/share graphics, and other non-event branding images."""
+    return bool(url) and bool(_GENERIC_IMG.search(url))
+
 def _img_url(tag, base_url: str) -> str:
     """Best real image URL for an <img>, handling common lazy-load attributes."""
     from urllib.parse import urljoin
@@ -199,7 +212,7 @@ def _image_from_soup(soup, base_url: str) -> str:
     Skip words match only as delimited path/filename tokens, so a real photo like
     "navarro_18880.jpg" isn't dropped for containing "nav"."""
     og = _og_image(soup, base_url)
-    if og:
+    if og and not _is_generic_image_url(og):
         return og
     skip = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
                       r"spacer|pixel|banner|sponsor|header|footer|nav|button|thumb)s?"
@@ -542,21 +555,20 @@ def calendar(events: list[dict], horizon: int) -> str:
                     f'<div class="mcard__title">{esc(ev.get("title",""))}</div>'
                     f'<div class="mcard__venue">{place}</div></div>'
                     f'<div class="mcard__when">{esc(mwhen)}</div></a>')
-            else:  # routine entry stays a compact row, now with a small thumbnail
-                more = ""
-                if url and url != "#":
-                    ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
-                    more = f'<a class="row__more" href="{esc(url)}"{ext}>Info</a>'
+            else:  # routine entry: a compact, FULLY-CLICKABLE row (whole tile links; no "Info" arrow)
                 rwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
                 rimg = ev.get("image")
                 rinner = (f'<img class="row__img" src="{esc(rimg)}" alt="" loading="lazy" '
                           f'onerror="this.remove()">' if rimg else "")
-                rows.append(
-                    f'<div class="row"><span class="row__sq thumb--{slug}">{rinner}</span>'
-                    f'<span class="row__title">{esc(ev.get("title",""))}</span>'
-                    f'<span class="row__venue">{esc(ev.get("venue",""))}</span>'
-                    f'<span class="row__code">{esc(ev.get("code","SD"))}</span>'
-                    f'<span class="row__time">{esc(rwhen)}</span>{more}</div>')
+                inner = (f'<span class="row__sq thumb--{slug}">{rinner}</span>'
+                         f'<span class="row__title">{esc(ev.get("title",""))}</span>'
+                         f'<span class="row__venue">{esc(ev.get("venue") or ev.get("neighborhood") or "")}</span>'
+                         f'<span class="row__time">{esc(rwhen)}</span>')
+                if url and url != "#":
+                    ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
+                    rows.append(f'<a class="row" href="{esc(url)}"{ext}>{inner}</a>')
+                else:
+                    rows.append(f'<div class="row">{inner}</div>')
         items = "".join(feats) + "".join(rows)
         blocks.append(f'<div class="dayblock"><div class="dayblock__date">'
                       f'<div class="dd">{d.strftime("%d")}</div>'
@@ -685,7 +697,128 @@ def tips(events: list[dict], horizon: int) -> str:
                      f"&mdash; the ongoing shows above are your best bet.</li>")
     return "\n        ".join(items)
 
+# ---------------------------------------------------------------- de-duplication
+# Some shows are listed by more than one source with slightly different wording
+# (e.g. "Exhibition Reception: Splash of Color" vs "Splash of Color Exhibition
+# Opening Reception & Celebration", or "Clearly Indigenous" vs its full subtitle
+# "Clearly Indigenous: Native Visions Reimagined in Glass"). The exact title+venue
+# key in merge() can't catch those, so we fold them here, just before rendering.
+# Two entries collapse ONLY when they share the same anchor date (so an opening
+# and a separate closing-day entry are never merged), the same place, and the same
+# distinctive title words. When folding, the richest fields win — in particular the
+# hours, if any one copy has them.
+_GENERIC_TITLE_WORDS = {
+    "exhibition", "exhibit", "exhibitions", "reception", "opening", "openings",
+    "closing", "celebration", "celebrations", "gala", "preview", "premiere",
+    "artist", "talk", "tour", "market", "presents", "present", "presenting",
+    "featuring", "feat", "the", "a", "an", "of", "and", "with", "at", "in",
+    "on", "for", "art", "arts", "juried", "annual", "free", "party", "members",
+    "member", "fundraiser", "benefit", "new", "amp", "to", "by",
+}
+_TYPE_PRIORITY = ["art_walk", "opening", "reception", "closing", "market", "talk", "exhibition"]
+
+def _title_tokens(title: str) -> set:
+    t = re.sub(r"[^a-z0-9]+", " ", (title or "").lower())
+    return {w for w in t.split() if w and w not in _GENERIC_TITLE_WORDS}
+
+def _place_match(a: dict, b: dict) -> bool:
+    va = re.sub(r"[^a-z0-9]+", "", (a.get("venue") or "").lower())
+    vb = re.sub(r"[^a-z0-9]+", "", (b.get("venue") or "").lower())
+    na = re.sub(r"[^a-z0-9]+", "", (a.get("neighborhood") or "").lower())
+    nb = re.sub(r"[^a-z0-9]+", "", (b.get("neighborhood") or "").lower())
+    if va and vb and (va == vb or va in vb or vb in va):
+        return True
+    if na and nb and na == nb:
+        return True
+    return False
+
+def _anchor_date(ev: dict) -> str:
+    return (ev.get("end_date") or "") if ev.get("type") == "closing" else (ev.get("start_date") or "")
+
+def _same_event(a: dict, b: dict) -> bool:
+    if _anchor_date(a) != _anchor_date(b):
+        return False
+    if not _place_match(a, b):
+        return False
+    ta, tb = _title_tokens(a.get("title", "")), _title_tokens(b.get("title", ""))
+    if not ta or not tb:
+        return False
+    if ta == tb:
+        return True
+    small, big = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    # the smaller title's words are fully contained in the larger's; require real
+    # signal so a one-word generic core can't swallow an unrelated show
+    if small <= big and (len(small) >= 2 or (len(small) == 1 and len(next(iter(small))) >= 4)):
+        return True
+    return False
+
+def _merge_group(group: list[dict]) -> dict:
+    if len(group) == 1:
+        return group[0]
+    def tprio(ev):
+        t = ev.get("type", "exhibition")
+        return _TYPE_PRIORITY.index(t) if t in _TYPE_PRIORITY else len(_TYPE_PRIORITY)
+    base = dict(min(group, key=tprio))                  # most actionable type wins
+    def first(field):
+        for e in group:
+            if e.get(field):
+                return e[field]
+        return ""
+    titles = [e.get("title", "").strip() for e in group if e.get("title", "").strip()]
+    if titles:
+        base["title"] = min(titles, key=len)            # cleanest (shortest) title
+    venues = [e.get("venue", "").strip() for e in group if e.get("venue", "").strip()]
+    if venues:
+        base["venue"] = max(venues, key=len)            # most specific venue name
+    base["time"] = first("time")                        # KEEP the hours if any copy has them
+    base["neighborhood"] = first("neighborhood") or base.get("neighborhood", "")
+    base["image"] = first("image")
+    descs = [e.get("description", "") for e in group if e.get("description")]
+    if descs:
+        base["description"] = max(descs, key=len)
+    best = next((e["url"] for e in group if _is_event_url(e.get("url", "")) and not _is_aggregator(e["url"])), "")
+    if not best:
+        best = next((e["url"] for e in group if _is_event_url(e.get("url", ""))), "")
+    if not best:
+        best = first("url")
+    base["url"] = best
+    if not base.get("source"):
+        base["source"] = first("source")
+    base["code"] = code_for(base.get("neighborhood", ""))
+    return base
+
+def collapse_duplicates(events: list[dict]) -> list[dict]:
+    """Fold entries that are the same real-world event listed by multiple sources."""
+    groups: list[list[dict]] = []
+    for ev in events:
+        for g in groups:
+            if _same_event(g[0], ev):
+                g.append(ev)
+                break
+        else:
+            groups.append([ev])
+    return [_merge_group(g) for g in groups]
+
+def drop_generic_images(events: list[dict]) -> None:
+    """Blank images that are site branding / default share graphics rather than a real event
+    photo. Two signals: (1) the URL matches a generic logo/default/share pattern; (2) the same
+    image is reused across 2+ events — a real show photo is unique, but a site default (e.g. an
+    aggregator's own logo, like DoSD's) gets stamped on many events. Cleared images fall back to
+    the card's colored panel."""
+    from collections import Counter
+    for e in events:
+        if _is_generic_image_url(e.get("image", "")):
+            e["image"] = ""
+    counts = Counter(e["image"] for e in events if e.get("image"))
+    shared = {u for u, c in counts.items() if c >= 2}
+    if shared:
+        for e in events:
+            if e.get("image") in shared:
+                e["image"] = ""
+
 def render(events: list[dict], horizon: int) -> None:
+    events = collapse_duplicates(events)  # fold same-event duplicates from multiple sources
+    drop_generic_images(events)           # blank site-logo / default / reused-across-events photos
     picks = sorted([e for e in events if e.get("is_pick")],
                    key=lambda e: (e.get("start_date") or "9999"))[:8]
     stamp = today().strftime("%B %-d, %Y")
@@ -822,7 +955,7 @@ def main(argv=None) -> int:
                         # If the model didn't find a per-show image, fall back to the page's
                         # share image — but only on focused pages (1-3 events), so a generic
                         # banner doesn't get stamped on every card of a big listing page.
-                        if image and 1 <= n <= 3:
+                        if image and 1 <= n <= 3 and not _is_generic_image_url(image):
                             for e in evs:
                                 if not e.get("image"):
                                     e["image"] = image
