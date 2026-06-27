@@ -315,7 +315,7 @@ Return ONLY a JSON array (no prose, no markdown fences). Each element:
   "end_date": "YYYY-MM-DD or empty string if unknown",
   "time": "reception/opening time if given, else empty string",
   "type": "one of: opening, reception, closing, art_walk, talk, market, exhibition",
-  "url": "direct link to THIS specific event/exhibition page if present in the text; empty string if only a homepage is available or you are unsure",
+  "url": "link to THIS ONE event's OWN detail page — the deepest, most specific link for it, NOT a list/calendar/category page that shows many events; empty string if no specific page is shown",
   "description": "one short sentence, <= 20 words",
   "image": "URL of this show's image if one is tagged near it like {image: https://...}; else empty string",
   "notable": true/false
@@ -323,6 +323,8 @@ Return ONLY a JSON array (no prose, no markdown fences). Each element:
 
 Rules:
 - Extract EVERY visual-art exhibition or event shown on the page: exhibitions currently ON VIEW (ongoing), upcoming openings, receptions, closing/last-chance shows, art walks, artist talks, and art markets.
+- The event MUST be primarily about VISUAL ART (painting, sculpture, photography, drawing, printmaking, ceramics, glass, textiles, installation, new media, etc.). EXCLUDE anything not centered on visual art, EVEN IF it appears on an arts/culture calendar: nature/animal/wildlife/"critter" programs, gardening, science/history/author/business lectures, music/concerts/theater/dance/comedy/film screenings, food/wine/beer/coffee events, fitness/yoga/wellness, holiday/community/neighborhood festivals, markets that aren't selling art, trivia/bingo/game nights, and children's or family activities. When you are unsure whether something is genuinely a visual-art event, leave it OUT.
+- A farmers market, produce/food market, flea market, swap meet, street fair, or night market is NOT an art event even if its description mentions the word "art" or it has a few art/craft booths (e.g. "Farmers Market ... with music, art, fresh produce, and local products"). Only treat a market as an art event (type "market") when it is primarily ARTISTS SELLING THEIR OWN ARTWORK (an art fair / art market / artisan art show).
 - Include a show even if only its title and a date range are listed (e.g. "Artist Name, through August 9"). NOTE: an item with an empty end_date is treated as a SINGLE-DAY event on its start_date, so leave end_date "" only for genuinely one-day events (reception, opening, talk, art walk, market); whenever an exhibition's closing/end date is stated anywhere in the text, you MUST capture it as end_date.
 - Do NOT skip a show just because it opened before today — if it is still on view, include it.
 - Ignore site navigation, ads, newsletter signups, store/shop product pages, and unrelated news articles.
@@ -330,7 +332,7 @@ Rules:
 - When a date range is shown (e.g. "March 22 - September 13", "through Aug 9", "on view May 1-Aug 1"), you MUST capture BOTH start_date and end_date. Never return only the start date when an end date is present in the text.
 - type: use "closing" for final-day/last-chance shows; "opening"/"reception" for new shows or receptions; "art_walk" for art walks/crawls; "talk" for lectures/tours; "market" for art markets/fairs; otherwise "exhibition".
 - Set "notable" true for museum shows, closings happening soon, and art walks.
-- Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that belongs to THAT specific exhibition/event, and STRONGLY prefer a link on the same website as this page (the venue's or organizer's own site). Do NOT use a link to a different calendar, listings/aggregator site, or ticketing platform (e.g. Eventbrite, Meetup) even if one is shown. Never use the site homepage or a generic listing root — use "" if no specific same-site link is shown for it.
+- Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that goes to THIS one event's OWN detail page — the deepest, most specific link for it (e.g. https://oma-online.org/events/artist-alliance-monthly-social-jun-28/), and STRONGLY prefer the venue's or organizer's own site. PARAMOUNT: never use a link to a page that lists many events — a homepage, or any calendar / "events" / "exhibitions" / category / listing page (e.g. https://oma-online.org/events/). Also do NOT use a different calendar, listings/aggregator site, or ticketing platform (e.g. Eventbrite, Meetup) even if one is shown. If this event has no specific same-site detail link in the text, use "".
 - Images in the page text are tagged like {image: https://gallery.com/photo.jpg}. For "image", copy the one that clearly belongs to THAT specific exhibition/event (usually the closest tagged image). Leave "" if none is clearly its own.
 - Today's date is {today}. Include current and upcoming items; you may include ongoing exhibitions that are on view now even if they run past {horizon} days.
 - If there are genuinely no visual-art exhibitions or events in the text, return [].
@@ -503,20 +505,52 @@ def _is_event_url(u: str) -> bool:
     p = urlparse(u)
     return p.scheme in ("http", "https") and bool(p.path.strip("/"))
 
+_NEVER_LINK_HOSTS = ("dosd.com",)   # we discover events here, but never send readers to it
+
+# Path segments / slugs that mean "a page that lists MANY events" (a calendar, category, or
+# landing page) rather than one event's own page. PARAMOUNT RULE: we never link to these — always
+# link to the specific event's detail page (e.g. /events/artist-alliance-monthly-social-jun-28/).
+_LISTING_LAST = {
+    "events", "event", "exhibitions", "exhibition", "exhibits", "exhibit", "calendar",
+    "calendars", "shows", "show", "listings", "listing", "whats-on", "whatson", "on-view",
+    "onview", "things-to-do", "programs", "program", "schedule", "agenda", "gallery",
+    "galleries", "home", "index", "news", "blog", "all-events", "current", "past", "upcoming",
+}
+_LISTING_CONTAINS = re.compile(
+    r"(events?-in-|community-events|art-events|arts?-and-culture|ongoing[-_]?events|"
+    r"event-(?:list|calendar)|exhibitions?-events|single-category|category)", re.I)
+
+def _is_listing_page(url: str) -> bool:
+    """True if the URL is a page that lists many events (a calendar / category / landing page)
+    rather than one specific event's own page. We never link a reader to one of these."""
+    if not url or not url.startswith("http"):
+        return False
+    from urllib.parse import urlparse
+    segs = [s for s in urlparse(url).path.split("/") if s]
+    if not segs:
+        return True                                      # bare domain / homepage
+    last = re.sub(r"\.(php|html?|aspx?)$", "", segs[-1].lower())
+    return last in _LISTING_LAST or bool(_LISTING_CONTAINS.search(last))
+
 def event_link(ev: dict) -> str:
-    """The event's own deep link if it's a real, non-calendar page; otherwise the source listing
-    page we scraped it from; otherwise '#'. We never link an event to a *foreign* third-party
-    calendar/aggregator (e.g. a different events site) — those are sources, not destinations. A
-    deep link on the same site we scraped from is fine even if that site is itself an aggregator."""
+    """Link to the event's OWN specific page. PARAMOUNT RULE: never link to a page that lists many
+    events (a calendar/category/landing page), never to a *foreign* aggregator, and never to a
+    never-link host (dosd.com). When we don't have the event's own page, send the reader to our
+    onview listing via '#' (card()/grid() convert it) rather than to a general list page."""
     from urllib.parse import urlparse
     u = ev.get("url", "")
     src = ev.get("source", "")
+    def never(url): return any(h in (url or "").lower() for h in _NEVER_LINK_HOSTS)
     src_host = urlparse(src).netloc.lower().replace("www.", "") if isinstance(src, str) and src.startswith("http") else ""
-    if _is_event_url(u):
+    # 1) the event's own deep page: a real event URL that is not a listing page, not a never-link
+    #    host, and not a *foreign* aggregator calendar
+    if _is_event_url(u) and not never(u) and not _is_listing_page(u):
         u_host = urlparse(u).netloc.lower().replace("www.", "")
-        if not (_is_aggregator(u) and u_host != src_host):   # reject only foreign calendar links
+        if not (_is_aggregator(u) and u_host != src_host):
             return u
-    if isinstance(src, str) and src.startswith("http"):
+    # 2) the source page ONLY if it is itself a specific event page — most sources are listing
+    #    pages, which we never link to (that is exactly the page this rule forbids)
+    if isinstance(src, str) and src.startswith("http") and not never(src) and not _is_listing_page(src):
         return src
     return "#"
 

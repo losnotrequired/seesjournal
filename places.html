@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Places &mdash; Sees Journal</title>
+<meta name="description" content="A directory of San Diego art galleries, museums, and institutions by neighborhood &mdash; with addresses, links, and a map of every space.">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=7">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  .places-lead{text-align:center;max-width:760px;margin:0 auto 6px;font-size:19px}
+  .places-jump{text-align:center;font-family:'Quicksand',sans-serif;font-size:13px;letter-spacing:.04em;text-transform:uppercase;margin:18px auto 0}
+  .places-jump a{color:var(--blue-dark);border-bottom:1px solid transparent}
+  .places-jump a:hover{border-bottom-color:var(--blue-dark)}
+  .areas-index{max-width:880px;margin:22px auto 8px;text-align:center;font-size:15px;line-height:1.9;color:#6b6258}
+  .areas-index a{color:var(--blue);font-weight:600}
+  .area{margin-top:52px}
+  .area__head{font-family:'Lora',serif;font-weight:600;font-size:26px;color:var(--ink-strong);border-bottom:2px solid var(--rule);padding-bottom:8px;margin:0 0 22px;display:flex;align-items:baseline;gap:10px}
+  .area__count{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;color:#fff;background:var(--blue);border-radius:999px;padding:2px 9px;line-height:1.4}
+  .vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .vcard{display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--rule-soft);transition:box-shadow .2s}
+  .vcard:hover{box-shadow:0 14px 28px -18px rgba(63,57,49,.45)}
+  .vcard.is-flash{box-shadow:0 0 0 3px var(--blue)}
+  .vcard__media{position:relative;aspect-ratio:16/10;overflow:hidden;background:var(--mono,#357cc4);display:flex;align-items:center;justify-content:center}
+  .vcard__mono{font-family:'Quicksand',sans-serif;font-weight:700;font-size:46px;letter-spacing:.04em;color:rgba(255,255,255,.92);text-shadow:0 1px 2px rgba(0,0,0,.18);position:relative;z-index:0}
+  .vcard__photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:2}
+  .vcard__sat{position:absolute;inset:0;z-index:1}
+  .vcard__sat,.vcard__sat .leaflet-container{width:100%;height:100%}
+  .vcard__sat .leaflet-container{background:transparent}
+  .vcard__sat .leaflet-tile-pane{pointer-events:none}
+  .vcard__body{display:flex;flex-direction:column;gap:6px;padding:15px 17px 16px;flex:1 1 auto}
+  .vcard__name{font-family:'Lora',serif;font-weight:600;font-size:18.5px;line-height:1.22;color:var(--ink-strong)}
+  .vcard__addr{font-size:14.5px;line-height:1.4;color:#6b6258}
+  .vcard__foot{margin-top:auto;padding-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px}
+  .vcard__link{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13.5px;letter-spacing:.02em;color:var(--blue)}
+  .vcard__link:hover{color:var(--blue-dark)}
+  .vcard__map{font-family:'Quicksand',sans-serif;font-weight:600;font-size:12.5px;letter-spacing:.02em;color:#8a8278;background:none;border:none;border-bottom:1px solid transparent;cursor:pointer;padding:0}
+  .vcard__map:hover{color:var(--ink-strong);border-bottom-color:var(--ink-strong)}
+  #map-section{margin-top:64px}
+  #placesmap{height:540px;border:1px solid var(--rule-soft);border-radius:12px;overflow:hidden;background:#e9e6df}
+  .leaflet-popup-content{font-family:'Lora',serif;font-size:14px;line-height:1.45;margin:12px 14px}
+  .leaflet-popup-content b{font-size:15px;color:var(--ink-strong)}
+  .leaflet-popup-content a{color:var(--blue);font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px}
+  .map-note{text-align:center;font-style:italic;font-size:14px;color:#9a948a;margin-top:12px}
+  .more{margin-top:54px;background:#f6f4ef;border:1px solid var(--rule-soft);border-radius:10px;padding:22px 26px}
+  .more h2{font-family:'Lora',serif;font-weight:600;font-size:20px;color:var(--ink-strong);margin:0 0 4px}
+  .more p{font-size:14.5px;color:#6b6258;margin:0 0 12px}
+  .more ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px 26px;margin:0;padding:0}
+  .more a{font-family:'Quicksand',sans-serif;font-weight:600;font-size:14px;color:var(--blue)}
+  .more a:hover{color:var(--blue-dark)}
+  @media(max-width:900px){ .vgrid{grid-template-columns:repeat(2,1fr)} #placesmap{height:460px} }
+  @media(max-width:620px){ .vgrid{grid-template-columns:1fr} #placesmap{height:380px} .area__head{font-size:22px} }
+</style>
+</head>
+<body id="top">
+
+<header class="site-header"><div class="wrap site-header__in">
+  <a href="index.html" class="logo" aria-label="Sees Journal"><img src="assets/images/logo.png" alt="Sees Journal"></a>
+  <nav class="topnav" aria-label="Primary">
+    <a href="index.html">Home</a>
+    <a href="onview.html">On View</a>
+    <a href="places.html">Places</a>
+    <a href="standouts.html">Standouts</a>
+    <a href="press.html">Press</a>
+    <a href="about.html">About</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+  <header class="page-hero">
+    <h1>Places</h1>
+    <p>Galleries, museums &amp; institutions across San Diego County &mdash; where to actually go see the work.</p>
+  </header>
+  <p class="places-lead">A standing directory of 59 spaces, grouped by neighborhood, each with its address and website. The map of every location is at the bottom.</p>
+  <p class="places-jump"><a href="#map-section">Jump to the map &#8595;</a></p>
+
+  <nav class="areas-index" aria-label="Neighborhoods"><a href="#area-la-jolla">La Jolla</a> &middot; <a href="#area-balboa-park">Balboa Park</a> &middot; <a href="#area-downtown-little-italy-east-village">Downtown, Little Italy &amp; East Village</a> &middot; <a href="#area-barrio-logan-logan-heights">Barrio Logan &amp; Logan Heights</a> &middot; <a href="#area-hillcrest-north-park-mid-city">Hillcrest, North Park &amp; Mid-City</a> &middot; <a href="#area-point-loma-liberty-station">Point Loma &amp; Liberty Station</a> &middot; <a href="#area-coastal-north-county">Coastal North County</a> &middot; <a href="#area-inland-north-county">Inland North County</a> &middot; <a href="#area-east-county">East County</a> &middot; <a href="#area-south-bay-bonita-coronado">South Bay, Bonita &amp; Coronado</a> &middot; <a href="#area-university-college-galleries">University &amp; College Galleries</a></nav>
+
+    <section class="area" id="area-la-jolla">
+      <h2 class="area__head">La Jolla <span class="area__count">10</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-museum-of-contemporary-art-san-diego-la-jolla" data-slug="museum-of-contemporary-art-san-diego-la-jolla" data-lat="32.8479" data-lng="-117.2786" data-name="Museum of Contemporary Art San Diego (La Jolla)" data-addr="700 Prospect St, La Jolla, CA 92037" data-url="https://mcasd.org/">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">MC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Museum of Contemporary Art San Diego (La Jolla)</h3>
+          <p class="vcard__addr">700 Prospect St, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://mcasd.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="museum-of-contemporary-art-san-diego-la-jolla">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-athenaeum-music-arts-library" data-slug="athenaeum-music-arts-library" data-lat="32.8466" data-lng="-117.2737" data-name="Athenaeum Music &amp; Arts Library" data-addr="1008 Wall St, La Jolla, CA 92037" data-url="https://www.ljathenaeum.org/">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">AM</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Athenaeum Music &amp; Arts Library</h3>
+          <p class="vcard__addr">1008 Wall St, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.ljathenaeum.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="athenaeum-music-arts-library">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-quint-gallery" data-slug="quint-gallery" data-lat="32.8456" data-lng="-117.2744" data-name="Quint Gallery" data-addr="7655 Girard Ave, La Jolla, CA 92037" data-url="https://www.quintgallery.com/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">QG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Quint Gallery</h3>
+          <p class="vcard__addr">7655 Girard Ave, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.quintgallery.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="quint-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-joseph-bellows-gallery" data-slug="joseph-bellows-gallery" data-lat="32.8455" data-lng="-117.2744" data-name="Joseph Bellows Gallery" data-addr="7661 Girard Ave, La Jolla, CA 92037" data-url="https://www.josephbellows.com/">
+        <div class="vcard__media" style="--mono:#7b4fb0"><span class="vcard__mono">JB</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Joseph Bellows Gallery</h3>
+          <p class="vcard__addr">7661 Girard Ave, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.josephbellows.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="joseph-bellows-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-madison-gallery" data-slug="madison-gallery" data-lat="32.8495" data-lng="-117.2733" data-name="Madison Gallery" data-addr="1020 Prospect St #130, La Jolla, CA 92037" data-url="https://madisongalleries.com/">
+        <div class="vcard__media" style="--mono:#a8472b"><span class="vcard__mono">MG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Madison Gallery</h3>
+          <p class="vcard__addr">1020 Prospect St #130, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://madisongalleries.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="madison-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-tasende-gallery" data-slug="tasende-gallery" data-lat="32.8487" data-lng="-117.2747" data-name="Tasende Gallery" data-addr="820 Prospect St, La Jolla, CA 92037" data-url="https://www.tasendegallery.com/">
+        <div class="vcard__media" style="--mono:#b9802b"><span class="vcard__mono">TG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Tasende Gallery</h3>
+          <p class="vcard__addr">820 Prospect St, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.tasendegallery.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="tasende-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-thumbprint-gallery" data-slug="thumbprint-gallery" data-lat="32.8472" data-lng="-117.2737" data-name="Thumbprint Gallery" data-addr="920 Kline St #104, La Jolla, CA 92037" data-url="https://www.thumbprintgallery.com/">
+        <div class="vcard__media" style="--mono:#2c68a6"><span class="vcard__mono">TG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Thumbprint Gallery</h3>
+          <p class="vcard__addr">920 Kline St #104, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.thumbprintgallery.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="thumbprint-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-l-g-projects" data-slug="l-g-projects" data-lat="32.846" data-lng="-117.2742" data-name="L&amp;G Projects" data-addr="La Jolla, CA 92037" data-url="https://landgprojects.com/">
+        <div class="vcard__media" style="--mono:#6b6258"><span class="vcard__mono">LP</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">L&amp;G Projects</h3>
+          <p class="vcard__addr">La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://landgprojects.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="l-g-projects">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-woodward-contemporary" data-slug="woodward-contemporary" data-lat="32.8458" data-lng="-117.2746" data-name="Woodward Contemporary" data-addr="La Jolla, CA 92037" data-url="https://www.woodwardcontemporary.com/">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">WC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Woodward Contemporary</h3>
+          <p class="vcard__addr">La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.woodwardcontemporary.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="woodward-contemporary">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-la-jolla-art-association" data-slug="la-jolla-art-association" data-lat="32.8553" data-lng="-117.2566" data-name="La Jolla Art Association" data-addr="La Jolla Shores, La Jolla, CA 92037" data-url="https://www.lajollaartassociation.org/">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">LJ</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">La Jolla Art Association</h3>
+          <p class="vcard__addr">La Jolla Shores, La Jolla, CA 92037</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.lajollaartassociation.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="la-jolla-art-association">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-balboa-park">
+      <h2 class="area__head">Balboa Park <span class="area__count">6</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-the-san-diego-museum-of-art" data-slug="the-san-diego-museum-of-art" data-lat="32.7314" data-lng="-117.1505" data-name="The San Diego Museum of Art" data-addr="1450 El Prado, San Diego, CA 92101" data-url="https://www.sdmart.org/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">DM</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">The San Diego Museum of Art</h3>
+          <p class="vcard__addr">1450 El Prado, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.sdmart.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="the-san-diego-museum-of-art">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-timken-museum-of-art" data-slug="timken-museum-of-art" data-lat="32.7311" data-lng="-117.1492" data-name="Timken Museum of Art" data-addr="1500 El Prado, San Diego, CA 92101" data-url="https://www.timkenmuseum.org/">
+        <div class="vcard__media" style="--mono:#7b4fb0"><span class="vcard__mono">TM</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Timken Museum of Art</h3>
+          <p class="vcard__addr">1500 El Prado, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.timkenmuseum.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="timken-museum-of-art">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-mingei-international-museum" data-slug="mingei-international-museum" data-lat="32.7316" data-lng="-117.1513" data-name="Mingei International Museum" data-addr="1439 El Prado, San Diego, CA 92101" data-url="https://mingei.org/">
+        <div class="vcard__media" style="--mono:#a8472b"><span class="vcard__mono">MI</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Mingei International Museum</h3>
+          <p class="vcard__addr">1439 El Prado, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://mingei.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="mingei-international-museum">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-ica-san-diego-central" data-slug="ica-san-diego-central" data-lat="32.7318" data-lng="-117.1516" data-name="ICA San Diego / Central" data-addr="1439 El Prado, San Diego, CA 92101" data-url="https://icasandiego.org/">
+        <div class="vcard__media" style="--mono:#b9802b"><span class="vcard__mono">ID</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">ICA San Diego / Central</h3>
+          <p class="vcard__addr">1439 El Prado, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://icasandiego.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="ica-san-diego-central">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-spanish-village-art-center" data-slug="spanish-village-art-center" data-lat="32.7332" data-lng="-117.1463" data-name="Spanish Village Art Center" data-addr="1770 Village Pl, San Diego, CA 92101" data-url="https://www.spanishvillageartcenter.com/">
+        <div class="vcard__media" style="--mono:#2c68a6"><span class="vcard__mono">SV</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Spanish Village Art Center</h3>
+          <p class="vcard__addr">1770 Village Pl, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.spanishvillageartcenter.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="spanish-village-art-center">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-japanese-friendship-garden" data-slug="japanese-friendship-garden" data-lat="32.7295" data-lng="-117.1488" data-name="Japanese Friendship Garden" data-addr="2215 Pan American Rd E, San Diego, CA 92101" data-url="https://www.niwa.org/">
+        <div class="vcard__media" style="--mono:#6b6258"><span class="vcard__mono">JF</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Japanese Friendship Garden</h3>
+          <p class="vcard__addr">2215 Pan American Rd E, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.niwa.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="japanese-friendship-garden">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-downtown-little-italy-east-village">
+      <h2 class="area__head">Downtown, Little Italy &amp; East Village <span class="area__count">6</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-museum-of-contemporary-art-san-diego-downtown" data-slug="museum-of-contemporary-art-san-diego-downtown" data-lat="32.7166" data-lng="-117.1697" data-name="Museum of Contemporary Art San Diego (Downtown)" data-addr="1100 &amp; 1001 Kettner Blvd, San Diego, CA 92101" data-url="https://mcasd.org/">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">MC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Museum of Contemporary Art San Diego (Downtown)</h3>
+          <p class="vcard__addr">1100 &amp; 1001 Kettner Blvd, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://mcasd.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="museum-of-contemporary-art-san-diego-downtown">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-the-new-children-s-museum" data-slug="the-new-children-s-museum" data-lat="32.7087" data-lng="-117.1631" data-name="The New Children&#x27;s Museum" data-addr="200 W Island Ave, San Diego, CA 92101" data-url="https://thinkplaycreate.org/">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">NC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">The New Children&#x27;s Museum</h3>
+          <p class="vcard__addr">200 W Island Ave, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://thinkplaycreate.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="the-new-children-s-museum">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-sparks-gallery" data-slug="sparks-gallery" data-lat="32.7117" data-lng="-117.1596" data-name="Sparks Gallery" data-addr="530 Sixth Ave, San Diego, CA 92101" data-url="https://sparksgallery.com/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">SG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Sparks Gallery</h3>
+          <p class="vcard__addr">530 Sixth Ave, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://sparksgallery.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="sparks-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-brokers-building-gallery" data-slug="brokers-building-gallery" data-lat="32.7103" data-lng="-117.161" data-name="Brokers Building Gallery" data-addr="402 Market St, San Diego, CA 92101" data-url="https://www.brokersbuilding.org/">
+        <div class="vcard__media" style="--mono:#7b4fb0"><span class="vcard__mono">BB</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Brokers Building Gallery</h3>
+          <p class="vcard__addr">402 Market St, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.brokersbuilding.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="brokers-building-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-meyer-fine-art" data-slug="meyer-fine-art" data-lat="32.7268" data-lng="-117.1699" data-name="Meyer Fine Art" data-addr="2400 Kettner Blvd #104, San Diego, CA 92101" data-url="https://meyerfineartinc.com/">
+        <div class="vcard__media" style="--mono:#a8472b"><span class="vcard__mono">MF</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Meyer Fine Art</h3>
+          <p class="vcard__addr">2400 Kettner Blvd #104, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://meyerfineartinc.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="meyer-fine-art">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-space-4-art" data-slug="space-4-art" data-lat="32.711" data-lng="-117.1526" data-name="Space 4 Art" data-addr="325 15th St, San Diego, CA 92101" data-url="https://www.sdspace4art.org/">
+        <div class="vcard__media" style="--mono:#b9802b"><span class="vcard__mono">S4</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Space 4 Art</h3>
+          <p class="vcard__addr">325 15th St, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.sdspace4art.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="space-4-art">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-barrio-logan-logan-heights">
+      <h2 class="area__head">Barrio Logan &amp; Logan Heights <span class="area__count">5</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-bread-salt" data-slug="bread-salt" data-lat="32.6987" data-lng="-117.1426" data-name="Bread &amp; Salt" data-addr="1955 Julian Ave, San Diego, CA 92113" data-url="https://www.breadandsaltsandiego.com/">
+        <div class="vcard__media" style="--mono:#2c68a6"><span class="vcard__mono">BS</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Bread &amp; Salt</h3>
+          <p class="vcard__addr">1955 Julian Ave, San Diego, CA 92113</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.breadandsaltsandiego.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="bread-salt">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-athenaeum-art-center" data-slug="athenaeum-art-center" data-lat="32.6987" data-lng="-117.143" data-name="Athenaeum Art Center" data-addr="1955 Julian Ave, San Diego, CA 92113" data-url="https://www.ljathenaeum.org/aac">
+        <div class="vcard__media" style="--mono:#6b6258"><span class="vcard__mono">AC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Athenaeum Art Center</h3>
+          <p class="vcard__addr">1955 Julian Ave, San Diego, CA 92113</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.ljathenaeum.org/aac" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="athenaeum-art-center">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-chicano-park-museum-cultural-center" data-slug="chicano-park-museum-cultural-center" data-lat="32.7" data-lng="-117.1431" data-name="Chicano Park Museum &amp; Cultural Center" data-addr="1960 National Ave, San Diego, CA 92113" data-url="https://chicanoparkmuseum.org/">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">CP</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Chicano Park Museum &amp; Cultural Center</h3>
+          <p class="vcard__addr">1960 National Ave, San Diego, CA 92113</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://chicanoparkmuseum.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="chicano-park-museum-cultural-center">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-logan-ave-galería-de-arte" data-slug="logan-ave-galería-de-arte" data-lat="32.7006" data-lng="-117.1408" data-name="Logan Ave Galería de Arte" data-addr="2168 Logan Ave, San Diego, CA 92113" data-url="https://2168lagda.com/">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">LA</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Logan Ave Galería de Arte</h3>
+          <p class="vcard__addr">2168 Logan Ave, San Diego, CA 92113</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://2168lagda.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="logan-ave-galería-de-arte">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-best-practice" data-slug="best-practice" data-lat="32.708" data-lng="-117.145" data-name="Best Practice" data-addr="Sherman Heights, San Diego, CA 92102" data-url="https://www.practicebest.org/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">BP</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Best Practice</h3>
+          <p class="vcard__addr">Sherman Heights, San Diego, CA 92102</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.practicebest.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="best-practice">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-hillcrest-north-park-mid-city">
+      <h2 class="area__head">Hillcrest, North Park &amp; Mid-City <span class="area__count">2</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-the-studio-door" data-slug="the-studio-door" data-lat="32.748" data-lng="-117.1604" data-name="The Studio Door" data-addr="3867 Fourth Ave, San Diego, CA 92103" data-url="https://thestudiodoor.com/">
+        <div class="vcard__media" style="--mono:#7b4fb0"><span class="vcard__mono">SD</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">The Studio Door</h3>
+          <p class="vcard__addr">3867 Fourth Ave, San Diego, CA 92103</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://thestudiodoor.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="the-studio-door">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-art-produce" data-slug="art-produce" data-lat="32.7486" data-lng="-117.1294" data-name="Art Produce" data-addr="3139 University Ave, San Diego, CA 92104" data-url="https://www.artproduce.org/">
+        <div class="vcard__media" style="--mono:#a8472b"><span class="vcard__mono">P</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Art Produce</h3>
+          <p class="vcard__addr">3139 University Ave, San Diego, CA 92104</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.artproduce.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="art-produce">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-point-loma-liberty-station">
+      <h2 class="area__head">Point Loma &amp; Liberty Station <span class="area__count">3</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-visions-museum-of-textile-art" data-slug="visions-museum-of-textile-art" data-lat="32.7398" data-lng="-117.212" data-name="Visions Museum of Textile Art" data-addr="2825 Dewey Rd #100, San Diego, CA 92106" data-url="https://vmota.org/">
+        <div class="vcard__media" style="--mono:#b9802b"><span class="vcard__mono">VM</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Visions Museum of Textile Art</h3>
+          <p class="vcard__addr">2825 Dewey Rd #100, San Diego, CA 92106</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://vmota.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="visions-museum-of-textile-art">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-san-diego-watercolor-society" data-slug="san-diego-watercolor-society" data-lat="32.7398" data-lng="-117.2122" data-name="San Diego Watercolor Society" data-addr="2825 Dewey Rd #105, San Diego, CA 92106" data-url="https://www.sdws.org/">
+        <div class="vcard__media" style="--mono:#2c68a6"><span class="vcard__mono">DW</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">San Diego Watercolor Society</h3>
+          <p class="vcard__addr">2825 Dewey Rd #105, San Diego, CA 92106</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.sdws.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="san-diego-watercolor-society">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-arts-district-liberty-station" data-slug="arts-district-liberty-station" data-lat="32.7404" data-lng="-117.2126" data-name="ARTS DISTRICT Liberty Station" data-addr="2640 Historic Decatur Rd, San Diego, CA 92106" data-url="https://artsdistrictlibertystation.org/">
+        <div class="vcard__media" style="--mono:#6b6258"><span class="vcard__mono">AD</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">ARTS DISTRICT Liberty Station</h3>
+          <p class="vcard__addr">2640 Historic Decatur Rd, San Diego, CA 92106</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://artsdistrictlibertystation.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="arts-district-liberty-station">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-coastal-north-county">
+      <h2 class="area__head">Coastal North County <span class="area__count">4</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-oceanside-museum-of-art" data-slug="oceanside-museum-of-art" data-lat="33.1955" data-lng="-117.3793" data-name="Oceanside Museum of Art" data-addr="704 Pier View Way, Oceanside, CA 92054" data-url="https://oma-online.org/">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">OM</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Oceanside Museum of Art</h3>
+          <p class="vcard__addr">704 Pier View Way, Oceanside, CA 92054</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://oma-online.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="oceanside-museum-of-art">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-ica-san-diego-north" data-slug="ica-san-diego-north" data-lat="33.0367" data-lng="-117.2614" data-name="ICA San Diego / North" data-addr="1550 S El Camino Real, Encinitas, CA 92024" data-url="https://icasandiego.org/">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">ID</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">ICA San Diego / North</h3>
+          <p class="vcard__addr">1550 S El Camino Real, Encinitas, CA 92024</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://icasandiego.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="ica-san-diego-north">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-oolong-gallery" data-slug="oolong-gallery" data-lat="33.068" data-lng="-117.301" data-name="Oolong Gallery" data-addr="Leucadia, Encinitas, CA 92024" data-url="https://oolongallery.com/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">OG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Oolong Gallery</h3>
+          <p class="vcard__addr">Leucadia, Encinitas, CA 92024</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://oolongallery.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="oolong-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-front-porch-gallery" data-slug="front-porch-gallery" data-lat="33.1581" data-lng="-117.3503" data-name="Front Porch Gallery" data-addr="Carlsbad Village, Carlsbad, CA 92008" data-url="https://www.frontporchgallery.org/">
+        <div class="vcard__media" style="--mono:#7b4fb0"><span class="vcard__mono">FP</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Front Porch Gallery</h3>
+          <p class="vcard__addr">Carlsbad Village, Carlsbad, CA 92008</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.frontporchgallery.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="front-porch-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-inland-north-county">
+      <h2 class="area__head">Inland North County <span class="area__count">8</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-california-center-for-the-arts-escondido" data-slug="california-center-for-the-arts-escondido" data-lat="33.1248" data-lng="-117.0829" data-name="California Center for the Arts, Escondido" data-addr="340 N Escondido Blvd, Escondido, CA 92025" data-url="https://artcenter.org/">
+        <div class="vcard__media" style="--mono:#a8472b"><span class="vcard__mono">CC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">California Center for the Arts, Escondido</h3>
+          <p class="vcard__addr">340 N Escondido Blvd, Escondido, CA 92025</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://artcenter.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="california-center-for-the-arts-escondido">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-distinction-gallery" data-slug="distinction-gallery" data-lat="33.1193" data-lng="-117.0789" data-name="Distinction Gallery" data-addr="317 E Grand Ave, Escondido, CA 92025" data-url="https://distinctionart.com/">
+        <div class="vcard__media" style="--mono:#b9802b"><span class="vcard__mono">DG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Distinction Gallery</h3>
+          <p class="vcard__addr">317 E Grand Ave, Escondido, CA 92025</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://distinctionart.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="distinction-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-escondido-arts-partnership-municipal-gallery" data-slug="escondido-arts-partnership-municipal-gallery" data-lat="33.1194" data-lng="-117.0795" data-name="Escondido Arts Partnership — Municipal Gallery" data-addr="262 E Grand Ave, Escondido, CA 92025" data-url="https://escondidoarts.org/">
+        <div class="vcard__media" style="--mono:#2c68a6"><span class="vcard__mono">EA</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Escondido Arts Partnership — Municipal Gallery</h3>
+          <p class="vcard__addr">262 E Grand Ave, Escondido, CA 92025</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://escondidoarts.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="escondido-arts-partnership-municipal-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-a-ship-in-the-woods" data-slug="a-ship-in-the-woods" data-lat="33.082" data-lng="-117.128" data-name="A Ship in the Woods" data-addr="Escondido, CA 92029" data-url="https://www.shipinthewoods.com/">
+        <div class="vcard__media" style="--mono:#6b6258"><span class="vcard__mono">SI</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">A Ship in the Woods</h3>
+          <p class="vcard__addr">Escondido, CA 92029</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.shipinthewoods.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="a-ship-in-the-woods">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-fallbrook-art-center" data-slug="fallbrook-art-center" data-lat="33.3766" data-lng="-117.251" data-name="Fallbrook Art Center" data-addr="103 S Main Ave, Fallbrook, CA 92028" data-url="https://www.fallbrookartcenter.org/">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">FC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Fallbrook Art Center</h3>
+          <p class="vcard__addr">103 S Main Ave, Fallbrook, CA 92028</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.fallbrookartcenter.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="fallbrook-art-center">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-fallbrook-art-association" data-slug="fallbrook-art-association" data-lat="33.3758" data-lng="-117.2515" data-name="Fallbrook Art Association" data-addr="Fallbrook, CA 92028" data-url="https://fallbrookartassn.org/">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">FA</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Fallbrook Art Association</h3>
+          <p class="vcard__addr">Fallbrook, CA 92028</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://fallbrookartassn.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="fallbrook-art-association">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-borrego-art-institute" data-slug="borrego-art-institute" data-lat="33.256" data-lng="-116.3748" data-name="Borrego Art Institute" data-addr="665 Palm Canyon Dr, Borrego Springs, CA 92004" data-url="https://borregoartinstitute.org/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">BI</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Borrego Art Institute</h3>
+          <p class="vcard__addr">665 Palm Canyon Dr, Borrego Springs, CA 92004</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://borregoartinstitute.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="borrego-art-institute">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-poway-center-for-the-performing-arts" data-slug="poway-center-for-the-performing-arts" data-lat="32.9756" data-lng="-117.0357" data-name="Poway Center for the Performing Arts" data-addr="15498 Espola Rd, Poway, CA 92064" data-url="https://powaycenter.com/">
+        <div class="vcard__media" style="--mono:#7b4fb0"><span class="vcard__mono">PC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Poway Center for the Performing Arts</h3>
+          <p class="vcard__addr">15498 Espola Rd, Poway, CA 92064</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://powaycenter.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="poway-center-for-the-performing-arts">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-east-county">
+      <h2 class="area__head">East County <span class="area__count">1</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-sophie-s-gallery-art-center" data-slug="sophie-s-gallery-art-center" data-lat="32.7952" data-lng="-116.9605" data-name="Sophie&#x27;s Gallery &amp; Art Center" data-addr="109 Rea Ave, El Cajon, CA 92020" data-url="https://stmsc.org/specialization/sophies-gallery/">
+        <div class="vcard__media" style="--mono:#a8472b"><span class="vcard__mono">SG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Sophie&#x27;s Gallery &amp; Art Center</h3>
+          <p class="vcard__addr">109 Rea Ave, El Cajon, CA 92020</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://stmsc.org/specialization/sophies-gallery/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="sophie-s-gallery-art-center">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-south-bay-bonita-coronado">
+      <h2 class="area__head">South Bay, Bonita &amp; Coronado <span class="area__count">5</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-a-reason-to-survive-arts" data-slug="a-reason-to-survive-arts" data-lat="32.6745" data-lng="-117.0975" data-name="A Reason To Survive (ARTS)" data-addr="200 E 12th St, National City, CA 91950" data-url="https://www.areasontosurvive.org/">
+        <div class="vcard__media" style="--mono:#b9802b"><span class="vcard__mono">RT</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">A Reason To Survive (ARTS)</h3>
+          <p class="vcard__addr">200 E 12th St, National City, CA 91950</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.areasontosurvive.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="a-reason-to-survive-arts">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-bonita-museum-cultural-center" data-slug="bonita-museum-cultural-center" data-lat="32.6595" data-lng="-117.0235" data-name="Bonita Museum &amp; Cultural Center" data-addr="4355 Bonita Rd, Bonita, CA 91902" data-url="https://bonitahistoricalsociety.org/">
+        <div class="vcard__media" style="--mono:#2c68a6"><span class="vcard__mono">BM</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Bonita Museum &amp; Cultural Center</h3>
+          <p class="vcard__addr">4355 Bonita Rd, Bonita, CA 91902</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://bonitahistoricalsociety.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="bonita-museum-cultural-center">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-pages-and-canvas" data-slug="pages-and-canvas" data-lat="32.628" data-lng="-117.083" data-name="Pages and Canvas" data-addr="Chula Vista, CA 91910" data-url="https://pagesandcanvas.com/">
+        <div class="vcard__media" style="--mono:#6b6258"><span class="vcard__mono">PC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Pages and Canvas</h3>
+          <p class="vcard__addr">Chula Vista, CA 91910</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://pagesandcanvas.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="pages-and-canvas">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-coronado-cultural-arts-c3" data-slug="coronado-cultural-arts-c3" data-lat="32.6859" data-lng="-117.1831" data-name="Coronado Cultural Arts (C3)" data-addr="Coronado, CA 92118" data-url="https://www.coronado.ca.us/176/Cultural-Arts">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">CC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Coronado Cultural Arts (C3)</h3>
+          <p class="vcard__addr">Coronado, CA 92118</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.coronado.ca.us/176/Cultural-Arts" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="coronado-cultural-arts-c3">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-coronado-art-association" data-slug="coronado-art-association" data-lat="32.6855" data-lng="-117.1805" data-name="Coronado Art Association" data-addr="Coronado, CA 92118" data-url="https://www.coronadoartassn.com/">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">CA</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Coronado Art Association</h3>
+          <p class="vcard__addr">Coronado, CA 92118</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.coronadoartassn.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="coronado-art-association">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="area" id="area-university-college-galleries">
+      <h2 class="area__head">University &amp; College Galleries <span class="area__count">9</span></h2>
+      <div class="vgrid">
+      <article class="vcard" id="v-ucsd-stuart-collection" data-slug="ucsd-stuart-collection" data-lat="32.8794" data-lng="-117.2359" data-name="UCSD Stuart Collection" data-addr="9500 Gilman Dr, La Jolla, CA 92093" data-url="https://stuartcollection.ucsd.edu/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">US</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">UCSD Stuart Collection</h3>
+          <p class="vcard__addr">9500 Gilman Dr, La Jolla, CA 92093</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://stuartcollection.ucsd.edu/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="ucsd-stuart-collection">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-usd-hoehn-family-galleries" data-slug="usd-hoehn-family-galleries" data-lat="32.7714" data-lng="-117.1882" data-name="USD Hoehn Family Galleries" data-addr="5998 Alcalá Park, San Diego, CA 92110" data-url="https://www.sandiego.edu/galleries/">
+        <div class="vcard__media" style="--mono:#7b4fb0"><span class="vcard__mono">UH</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">USD Hoehn Family Galleries</h3>
+          <p class="vcard__addr">5998 Alcalá Park, San Diego, CA 92110</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.sandiego.edu/galleries/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="usd-hoehn-family-galleries">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-sdsu-university-gallery" data-slug="sdsu-university-gallery" data-lat="32.7757" data-lng="-117.0713" data-name="SDSU University Gallery" data-addr="5500 Campanile Dr, San Diego, CA 92182" data-url="https://art.sdsu.edu/">
+        <div class="vcard__media" style="--mono:#a8472b"><span class="vcard__mono">SU</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">SDSU University Gallery</h3>
+          <p class="vcard__addr">5500 Campanile Dr, San Diego, CA 92182</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://art.sdsu.edu/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="sdsu-university-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-mesa-college-art-gallery" data-slug="mesa-college-art-gallery" data-lat="32.8" data-lng="-117.164" data-name="Mesa College Art Gallery" data-addr="7250 Mesa College Dr, San Diego, CA 92111" data-url="https://www.sdmesa.edu/">
+        <div class="vcard__media" style="--mono:#b9802b"><span class="vcard__mono">MC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Mesa College Art Gallery</h3>
+          <p class="vcard__addr">7250 Mesa College Dr, San Diego, CA 92111</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.sdmesa.edu/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="mesa-college-art-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-boehm-gallery-palomar-college" data-slug="boehm-gallery-palomar-college" data-lat="33.148" data-lng="-117.181" data-name="Boehm Gallery — Palomar College" data-addr="1140 W Mission Rd, San Marcos, CA 92069" data-url="https://www.palomar.edu/boehmgallery/">
+        <div class="vcard__media" style="--mono:#2c68a6"><span class="vcard__mono">BG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Boehm Gallery — Palomar College</h3>
+          <p class="vcard__addr">1140 W Mission Rd, San Marcos, CA 92069</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.palomar.edu/boehmgallery/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="boehm-gallery-palomar-college">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-hyde-art-gallery-grossmont-college" data-slug="hyde-art-gallery-grossmont-college" data-lat="32.816" data-lng="-116.956" data-name="Hyde Art Gallery — Grossmont College" data-addr="8800 Grossmont College Dr, El Cajon, CA 92020" data-url="https://www.grossmont.edu/">
+        <div class="vcard__media" style="--mono:#6b6258"><span class="vcard__mono">HG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Hyde Art Gallery — Grossmont College</h3>
+          <p class="vcard__addr">8800 Grossmont College Dr, El Cajon, CA 92020</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.grossmont.edu/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="hyde-art-gallery-grossmont-college">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-kruglak-gallery-miracosta-college" data-slug="kruglak-gallery-miracosta-college" data-lat="33.19" data-lng="-117.347" data-name="Kruglak Gallery — MiraCosta College" data-addr="1 Barnard Dr, Oceanside, CA 92056" data-url="https://kruglakgallery.weebly.com/">
+        <div class="vcard__media" style="--mono:#357cc4"><span class="vcard__mono">KG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Kruglak Gallery — MiraCosta College</h3>
+          <p class="vcard__addr">1 Barnard Dr, Oceanside, CA 92056</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://kruglakgallery.weebly.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="kruglak-gallery-miracosta-college">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-southwestern-college-art-gallery" data-slug="southwestern-college-art-gallery" data-lat="32.6418" data-lng="-117.001" data-name="Southwestern College Art Gallery" data-addr="900 Otay Lakes Rd, Chula Vista, CA 91910" data-url="https://www.swccd.edu/swc-community/art-gallery/index.aspx">
+        <div class="vcard__media" style="--mono:#473d35"><span class="vcard__mono">SC</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">Southwestern College Art Gallery</h3>
+          <p class="vcard__addr">900 Otay Lakes Rd, Chula Vista, CA 91910</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://www.swccd.edu/swc-community/art-gallery/index.aspx" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="southwestern-college-art-gallery">Show on map</button>
+          </div>
+        </div>
+      </article>
+      <article class="vcard" id="v-city-gallery-san-diego-city-college" data-slug="city-gallery-san-diego-city-college" data-lat="32.7155" data-lng="-117.153" data-name="City Gallery — San Diego City College" data-addr="1313 Park Blvd, San Diego, CA 92101" data-url="https://citygallerysdcc.weebly.com/">
+        <div class="vcard__media" style="--mono:#2b8a86"><span class="vcard__mono">CG</span></div>
+        <div class="vcard__body">
+          <h3 class="vcard__name">City Gallery — San Diego City College</h3>
+          <p class="vcard__addr">1313 Park Blvd, San Diego, CA 92101</p>
+          <div class="vcard__foot">
+            <a class="vcard__link" href="https://citygallerysdcc.weebly.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+            <button type="button" class="vcard__map" data-target="city-gallery-san-diego-city-college">Show on map</button>
+          </div>
+        </div>
+      </article>
+      </div>
+    </section>
+
+  <section class="more">
+    <h2>More spaces</h2>
+    <p>Worth knowing, but we haven&rsquo;t pinned a confirmed street address yet &mdash; tap through to each site.</p>
+    <ul>
+      <li><a href="https://www.losnotrequired.com/" target="_blank" rel="noopener noreferrer">Level of Service Not Required &#8599;</a></li>
+      <li><a href="https://unionhallgallery.org/" target="_blank" rel="noopener noreferrer">Union Hall Gallery (SDMA Artists Guild) &#8599;</a></li>
+      <li><a href="https://deixisofficial.com/" target="_blank" rel="noopener noreferrer">Deixis Gallery &#8599;</a></li>
+      <li><a href="https://www.techneartcenter.com/" target="_blank" rel="noopener noreferrer">Techne Art Center &#8599;</a></li>
+      <li><a href="https://www.covetartgallery.com/" target="_blank" rel="noopener noreferrer">Covet Art Gallery &#8599;</a></li>
+    </ul>
+  </section>
+
+  <section id="map-section">
+    <header class="shead" style="margin:0 0 26px"><span class="tag-blue">The Map</span>
+      <h2>Every space, mapped</h2>
+      <p>Tap a pin for the address and a link.</p></header>
+    <div id="placesmap"></div>
+    <p class="map-note">Addresses and pins are gathered from public listings &mdash; always confirm hours and location with the venue before you travel.<br>Aerial imagery &copy; Esri, Maxar, Earthstar Geographics; street map &copy; OpenStreetMap contributors; selected building photos via Wikimedia Commons.</p>
+  </section>
+</div>
+
+<footer class="site-footer"><div class="wrap">
+  <div class="logo footlogo"><img src="assets/images/logo.png" alt="Sees Journal"></div>
+  <p class="mission">An <em>independent</em> listing of everything on view in San Diego, California &mdash; and beyond.</p>
+  <div class="footlinks"><a href="about.html">About</a><a href="contact.html">Contact</a></div>
+  <hr class="footrule">
+  <p class="copy">Sees Journal &middot; San Diego</p>
+  <p class="footnote"><a href="privacy.html">Privacy</a></p>
+</div></footer>
+<a href="#top" class="totop" id="totop" aria-label="Back to top">&#8593;</a>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  if (typeof L === "undefined") return;
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".vcard[data-lat]"));
+
+  /* ---- Building imagery for every venue. Confirmed Wikimedia Commons photos (free, hotlinkable)
+          are used where we have them; everyone else gets a free Esri aerial thumbnail. Both are
+          lazy-loaded; if a photo fails to load we fall back to the aerial, and if the aerial fails
+          the colored tile shows through. No keys, no accounts, no setup. ---- */
+  var ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  var PHOTOS = {
+    "the-san-diego-museum-of-art": "https://commons.wikimedia.org/wiki/Special:FilePath/San_Diego_Museum_of_Art_Balboa_Park_01.jpg?width=640",
+    "timken-museum-of-art": "https://commons.wikimedia.org/wiki/Special:FilePath/Timken_Museum_of_Art,_San_Diego_01.jpg?width=640",
+    "museum-of-contemporary-art-san-diego-downtown": "https://commons.wikimedia.org/wiki/Special:FilePath/Museum_of_Contemporary_Art,_Downtown_San_Diego.jpg?width=640",
+    "the-new-children-s-museum": "https://commons.wikimedia.org/wiki/Special:FilePath/The_New_Childrens_Museum.jpg?width=640",
+    "spanish-village-art-center": "https://commons.wikimedia.org/wiki/Special:FilePath/Spanish_Village_Art_Center,_Balboa_Park_4.JPG?width=640",
+    "athenaeum-music-arts-library": "https://commons.wikimedia.org/wiki/Special:FilePath/Athenaeum_Music_Arts_Library_La_Jolla_entrance.jpg?width=640"
+  };
+  function buildSat(media, lat, lng){
+    if (media.querySelector(".vcard__sat")) return;
+    var el = document.createElement("div");
+    el.className = "vcard__sat";
+    media.appendChild(el);
+    var mini = L.map(el, {zoomControl:false, attributionControl:false, dragging:false,
+      scrollWheelZoom:false, doubleClickZoom:false, boxZoom:false, keyboard:false,
+      touchZoom:false}).setView([lat, lng], 18);
+    L.tileLayer(ESRI, {maxZoom:19}).addTo(mini);
+    setTimeout(function(){ mini.invalidateSize(); }, 0);
+  }
+  function makeThumb(card){
+    if (!card) return;
+    var lat = parseFloat(card.getAttribute("data-lat"));
+    var lng = parseFloat(card.getAttribute("data-lng"));
+    var media = card.querySelector(".vcard__media");
+    if (isNaN(lat) || isNaN(lng) || !media) return;
+    if (media.querySelector(".vcard__sat") || media.querySelector(".vcard__photo")) return;
+    var slug = card.getAttribute("data-slug");
+    if (PHOTOS[slug]) {
+      var img = new Image();
+      img.className = "vcard__photo";
+      img.alt = card.getAttribute("data-name") || "";
+      img.loading = "lazy";
+      img.onerror = function(){ img.remove(); buildSat(media, lat, lng); };   // fall back to aerial
+      img.src = PHOTOS[slug];
+      media.appendChild(img);
+    } else {
+      buildSat(media, lat, lng);
+    }
+  }
+  if ("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries, obs){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ makeThumb(e.target.closest(".vcard")); obs.unobserve(e.target); }
+      });
+    }, {rootMargin:"250px"});
+    cards.forEach(function(c){ var m = c.querySelector(".vcard__media"); if (m) io.observe(m); });
+  } else {
+    cards.forEach(makeThumb);
+  }
+
+  /* ---- The big map of every venue (OpenStreetMap) ---- */
+  var map = L.map("placesmap", {scrollWheelZoom:false});
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+  var bySlug = {};
+  var group = L.featureGroup().addTo(map);
+  cards.forEach(function(card){
+    var lat = parseFloat(card.getAttribute("data-lat"));
+    var lng = parseFloat(card.getAttribute("data-lng"));
+    if (isNaN(lat) || isNaN(lng)) return;
+    var name = card.getAttribute("data-name") || "";
+    var addr = card.getAttribute("data-addr") || "";
+    var url  = card.getAttribute("data-url") || "#";
+    var m = L.circleMarker([lat, lng], {radius:8, color:"#ffffff", weight:2, fillColor:"#357cc4", fillOpacity:1}).addTo(group);
+    m.bindPopup("<b>" + name + "</b><br>" + addr + '<br><a href="' + url + '" target="_blank" rel="noopener noreferrer">Visit site \u2197</a>');
+    bySlug[card.getAttribute("data-slug")] = m;
+  });
+  if (group.getLayers().length) { map.fitBounds(group.getBounds(), {padding:[34,34]}); }
+  else { map.setView([32.83, -117.18], 10); }
+  document.querySelectorAll(".vcard__map[data-target]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var m = bySlug[btn.getAttribute("data-target")];
+      if (!m) return;
+      document.getElementById("placesmap").scrollIntoView({behavior:"smooth", block:"center"});
+      map.setView(m.getLatLng(), 16, {animate:true});
+      m.openPopup();
+    });
+  });
+})();
+</script>
+</body>
+</html>
