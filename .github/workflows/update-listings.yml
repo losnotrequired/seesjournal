@@ -39,11 +39,30 @@ jobs:
         run: |
           git config user.name "listings-bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/events.json index.html onview.html
-          if git diff --staged --quiet; then
-            echo "No changes."
-          else
+          # These files are regenerated every run, so the bot's fresh version must win.
+          # Rebasing/merging them causes guaranteed conflicts; instead, take the latest
+          # remote, drop our freshly generated files on top, and push as a clean commit.
+          mkdir -p /tmp/gen
+          cp data/events.json /tmp/gen/events.json
+          cp index.html /tmp/gen/index.html
+          cp onview.html /tmp/gen/onview.html
+          published=0
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard FETCH_HEAD
+            cp /tmp/gen/events.json data/events.json
+            cp /tmp/gen/index.html index.html
+            cp /tmp/gen/onview.html onview.html
+            git add data/events.json index.html onview.html
+            if git diff --staged --quiet; then
+              echo "No changes to publish."; published=1; break
+            fi
             git commit -m "Auto-update listings ($(date -u +%Y-%m-%d))"
-            git pull --rebase origin main || true
-            git push origin HEAD:main
+            if git push origin HEAD:main; then
+              echo "Published."; published=1; break
+            fi
+            echo "Push race detected, retrying ($i)..."; sleep 3
+          done
+          if [ "$published" != "1" ]; then
+            echo "::error::Failed to publish after retries"; exit 1
           fi
