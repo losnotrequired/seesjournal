@@ -81,6 +81,7 @@ sources:
   - { name: "The Cultural Calendar",          url: "https://www.theculturalcalendar.com/events-in-san-diego",                  type: html }
   - { name: "DoSD — Arts & Culture",          url: "https://dosd.com/events/arts-and-culture",                                 type: html }
   - { name: "City of San Diego — Events",     url: "https://www.sandiego.gov/events",                                          type: html }
+  - { name: "Artforum Artguide — San Diego",  url: "https://artguide.artforum.com/artguide/place/san-diego?category=all",      type: html, force_render: true }   # JS listings app — needs render
 
   # ---- Nonprofit / alternative / DIY art spaces ----
   - { name: "Bread & Salt",                   url: "https://www.breadandsaltsandiego.com/",                                    type: html }

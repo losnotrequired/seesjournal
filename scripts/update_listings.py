@@ -27,7 +27,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "5"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "6"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 16000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -76,7 +76,7 @@ def _og_image(soup, base_url: str):
 # like "navarro_18880.jpg" is never dropped for containing "nav".
 _GENERIC_IMG = re.compile(
     r"(?:^|[/_.\-])(logos?|icons?|sprite|avatar|favicon|placeholder|blank|spacer|pixel|"
-    r"banner|sponsor|header|footer|nav|button|thumb|thumbnail|default|share|ogimage|"
+    r"banner|sponsor|header|footer|nav|button|default|share|ogimage|"
     r"og[-_]?image|social|brand|branding|fallback|missing|noimage|no[-_]?image|"
     r"watermark|site[-_]?logo|default[-_]?image)s?(?:$|[/_.\-])", re.I)
 
@@ -193,6 +193,7 @@ _AGGREGATOR_HOSTS = (
     "sandiegomagazine.com", "theculturalcalendar.com", "dosd.com", "sandiego.gov",
     "mylibrary.digital", "eventbrite.", "allevents.in", "eventful.", "meetup.com",
     "do619.", "do210.", "ticketmaster.", "eventeny.", "tixr.", "seetickets.", "artsy.net",
+    "artforum.com",
 )
 
 def _is_aggregator(url: str) -> bool:
@@ -228,16 +229,27 @@ def _image_from_soup(soup, base_url: str) -> str:
     og = _og_image(soup, base_url)
     if og and not _is_generic_image_url(og):
         return og
-    skip = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
-                      r"spacer|pixel|banner|sponsor|header|footer|nav|button|thumb)s?"
-                      r"(?:$|[/_.\-])", re.I)
-    photo_dir = re.compile(r"(/images/events/|/uploads?/|/wp-content/uploads/|/event|"
-                           r"/gallery/|/media/|/artwork|/exhibition|/files/|/photos?/)", re.I)
-    for im in soup.find_all("img"):
+    # site chrome we never want as an event photo
+    chrome = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
+                        r"spacer|pixel|banner|sponsor|header|footer|nav|button)s?(?:$|[/_.\-])", re.I)
+    # "thumbnail" renditions are usually nav chrome, BUT some sites (e.g. Timken) serve the actual
+    # event photo from a /.thumbnails/ path — so only treat thumb as chrome OUTSIDE event folders
+    thumbish = re.compile(r"(?:^|[/_.\-])(thumb|thumbnail)s?(?:$|[/_.\-])", re.I)
+    strong_dir = re.compile(r"(/images/events/|/events?/|/calendar/|/artwork|/exhibitions?/|/gallery/)", re.I)
+    photo_dir = re.compile(r"(/images/events/|/uploads?/|/wp-content/uploads/|/events?/|/calendar/|"
+                           r"/gallery/|/media/|/artwork|/exhibitions?/|/files/|/photos?/)", re.I)
+    imgs = soup.find_all("img")
+    # pass 1: a photo in a strong event/exhibition folder — accept even a thumbnail rendition,
+    # since the resized image IS the event photo on sites like Timken (/uploads/events/.thumbnails/)
+    for im in imgs:
         src = _img_url(im, base_url)
-        if not src or not src.startswith("http") or skip.search(src):
-            continue
-        if photo_dir.search(src):
+        if src and src.startswith("http") and not chrome.search(src) and strong_dir.search(src):
+            return src
+    # pass 2: otherwise any content photo in a media folder, skipping thumbnail/chrome renditions
+    for im in imgs:
+        src = _img_url(im, base_url)
+        if (src and src.startswith("http") and not chrome.search(src)
+                and not thumbish.search(src) and photo_dir.search(src)):
             return src
     return ""
 
@@ -709,15 +721,32 @@ def hero_photo(ev) -> str:
             f"onerror=\"var s=this.nextElementSibling; if(s){{s.remove();}} this.remove();\">"
             f'<span class="hero__scrim"></span>')
 
+def hero_date(ev: dict) -> str:
+    """Date line for the standout hero: show the show's full run (a period), not a single
+    day. Mirrors card_date's logic but in the hero's fuller 'Month D, YYYY' style."""
+    s, e = ev.get("start_date") or "", ev.get("end_date") or ""
+    def parse(d):
+        try: return dt.date.fromisoformat(d)
+        except ValueError: return None
+    def full(d): return d.strftime("%B %-d, %Y")      # March 22, 2025
+    def md(d):   return d.strftime("%B %-d")           # March 22
+    sd, ed, t = parse(s), parse(e), today()
+    if sd and ed and sd != ed:
+        return (f"{md(sd)} \u2013 {full(ed)}" if sd.year == ed.year   # March 22 – June 15, 2025
+                else f"{full(sd)} \u2013 {full(ed)}")                  # Dec 1, 2025 – Jan 5, 2026
+    if sd and ed and sd == ed:
+        return full(sd)                                                # genuine one-day event
+    if ed and not sd:
+        return f"Through {full(ed)}"                                   # Through June 15, 2025
+    if sd and not ed:
+        return f"Opens {full(sd)}" if sd > t else f"From {full(sd)}"   # Opens / From March 22, 2025
+    return s or e                                                      # unparseable fallback
+
 def hero_inner(events: list[dict]) -> str | None:
     ev = hero_event(events)
     if not ev:
         return None
-    d = ev.get("start_date") or ""
-    try:
-        dd = dt.date.fromisoformat(d).strftime("%B %-d, %Y")
-    except ValueError:
-        dd = d
+    dd = hero_date(ev)
     place = esc(ev.get("neighborhood", "")) or esc(ev.get("code", "SD"))
     meta = f"{esc(dd)} &nbsp;|&nbsp; {place}" if dd else place
     cat = esc(ev.get("description") or KICK.get(ev.get("type"), "On View"))
@@ -898,20 +927,30 @@ def collapse_duplicates(events: list[dict]) -> list[dict]:
     return [_merge_group(g) for g in groups]
 
 def drop_generic_images(events: list[dict]) -> None:
-    """Blank images that are site branding / default share graphics rather than a real event
-    photo. Two signals: (1) the URL matches a generic logo/default/share pattern; (2) the same
-    image is reused across 2+ events — a real show photo is unique, but a site default (e.g. an
-    aggregator's own logo, like DoSD's) gets stamped on many events. Cleared images fall back to
-    the card's colored panel."""
-    from collections import Counter
+    """Blank images that are site branding / default share graphics rather than a real event photo.
+    Two signals: (1) the URL matches a generic logo/default/share pattern; (2) the SAME image is
+    reused across events that are genuinely DIFFERENT shows — a site default (e.g. an aggregator's
+    own logo, like DoSD's) gets stamped on unrelated events all over town. An image shared only
+    among entries for the SAME show (which share a title word — e.g. an exhibition and its
+    closing-day reminder, like Mingei's "Clearly Indigenous") is a real photo and is kept. Cleared
+    images fall back to the card's colored panel."""
+    from collections import defaultdict
     for e in events:
         if _is_generic_image_url(e.get("image", "")):
             e["image"] = ""
-    counts = Counter(e["image"] for e in events if e.get("image"))
-    shared = {u for u, c in counts.items() if c >= 2}
-    if shared:
-        for e in events:
-            if e.get("image") in shared:
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for e in events:
+        if e.get("image"):
+            groups[e["image"]].append(e)
+    for img, evs in groups.items():
+        if len(evs) < 2:
+            continue
+        common = None
+        for e in evs:
+            toks = _title_tokens(e.get("title", ""))
+            common = toks if common is None else (common & toks)
+        if not common:                      # no title word in common -> different shows -> generic
+            for e in evs:
                 e["image"] = ""
 
 def render(events: list[dict], horizon: int) -> None:

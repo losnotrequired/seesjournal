@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=5">
+<link rel="stylesheet" href="assets/style.css?v=6">
 <style>
 /* Two-week calendar grid — scoped to this page so the shared stylesheet/version is untouched */
 .calwrap{margin-top:18px}
@@ -46,29 +46,23 @@
 <body id="top">
 
 <header class="site-header"><div class="wrap site-header__in">
-  <div class="site-header__left">
-    <span class="icon-acct" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4 0-9 2-9 6v2h18v-2c0-4-5-6-9-6Z"/></svg></span>
-    <button class="hamb" id="hamb" aria-label="Open menu"><span></span><span></span><span></span></button>
-  </div>
   <a href="index.html" class="logo" aria-label="Sees Journal"><img src="assets/images/logo.png" alt="Sees Journal"></a>
-  <div class="site-header__right"><a class="signin" href="contact.html">Sign In</a></div>
+  <nav class="topnav" aria-label="Primary">
+    <a href="index.html">Home</a>
+    <a href="onview.html">On View</a>
+    <a href="standouts.html">Standouts</a>
+    <a href="press.html">Press</a>
+    <a href="about.html">About</a>
+    <a href="contact.html">Contact</a>
+  </nav>
 </div></header>
-<nav class="menu" id="menu">
-  <button class="menu__close" id="close">Close</button>
-  <a href="index.html" data-menu>Home</a>
-  <a href="onview.html" data-menu>On View</a>
-  <a href="standouts.html" data-menu>Standouts</a>
-  <a href="press.html" data-menu>Press</a>
-  <a href="about.html" data-menu>About</a>
-  <a href="contact.html" data-menu>Contact</a>
-</nav>
 
 <div class="wrap">
 
   <header class="page-hero">
     <h1>On View</h1>
     <p><!-- AUTO:ONVIEWSTATS:START -->
-Listings updating &mdash; new shows are being gathered.
+1 show on view
 <!-- AUTO:ONVIEWSTATS:END --></p>
     <p class="note"><!-- AUTO:UPDATED:START -->
 Updated June 27, 2026
@@ -87,7 +81,9 @@ Updated June 27, 2026
   <section id="also">
     <div class="shead"><span class="tag-blue">Also On View</span><h2>Still Up All Week</h2><p>major shows running through the window</p></div>
     <!-- AUTO:ALSO:START -->
-<p class="note">No ongoing exhibitions listed right now &mdash; see the day-by-day calendar below.</p>
+<div class="grid">
+<a class="card" href="https://www.sdmart.org/exhibition/dutch-painting/" target="_blank" rel="noopener"><div class="card__panel is-plain has-photo"><img class="card__photo" src="https://sdmart.org/img/dutch.jpg" alt="" loading="lazy" onerror="this.closest('.card__panel').classList.remove('has-photo');this.closest('.card__panel').classList.add('is-blue');this.remove()"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Aug 15</span></div><div class="card__body"><div class="card__title">Dutch Painting: Special Loans from the Museum of Fine Arts, Boston</div><div class="card__venue">San Diego Museum of Art &middot; Balboa Park</div><span class="card__more">More Info</span></div></a>
+</div>
 <!-- AUTO:ALSO:END -->
   </section>
 
@@ -95,7 +91,7 @@ Updated June 27, 2026
   <section id="days">
     <div class="shead"><span class="tag-blue">Calendar</span><h2>Day by Day</h2><p>ten days, every listing</p></div>
     <!-- AUTO:CALENDAR:START -->
-<p class="note">No dated openings or events in the next 30 days. The picks above are on view now &mdash; check back for new dates.</p>
+<p class="note">No dated openings or events in the next 60 days. The picks above are on view now &mdash; check back for new dates.</p>
 <!-- AUTO:CALENDAR:END -->
   </section>
 
@@ -164,7 +160,7 @@ Updated June 27, 2026
     <div class="notewrap">
       <div class="notecol grey"><h3>This Week</h3><ul>
         <!-- AUTO:TIPS:START -->
-<li>No dated openings or art walks in the next 30 days &mdash; the ongoing shows above are your best bet.</li>
+<li>No dated openings or art walks in the next 60 days &mdash; the ongoing shows above are your best bet.</li>
 <!-- AUTO:TIPS:END -->
       </ul></div>
       <div class="notecol dark"><h3>Before You Go</h3><ul>
