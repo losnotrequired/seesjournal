@@ -29,7 +29,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
 STYLE_VERSION = "9"   # bump when assets/style.css changes; render() stamps it into the pages
-MAX_TEXT_CHARS = 16000
+MAX_TEXT_CHARS = 30000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
 RENDER_MIN_CHARS = 800   # below this, retry with a headless browser (if --render-js)
@@ -105,6 +105,20 @@ def _extract_text(html: str, url: str):
     soup = BeautifulSoup(html, "html.parser")
     image = _og_image(soup, url)
     for tag in soup(["script", "style", "noscript", "svg"]):
+        tag.decompose()
+    # Strip site chrome before the text gets measured against MAX_TEXT_CHARS: the budget must
+    # be spent on event content, not navigation. Some sources (e.g. KPBS) carry a duplicated
+    # mega-menu that alone exceeds the cap, pushing every event out of the window so 0 are
+    # extracted. Nav and footer are always chrome. A <header> is removed only when it is
+    # site-level — one nested inside an article/main/section is usually an event's own title
+    # block, so it stays. <form> is deliberately left alone (some sites, e.g. ASP.NET
+    # WebForms, wrap the entire page body in a single <form>).
+    for tag in soup.find_all(["nav", "footer"]):
+        tag.decompose()
+    for tag in soup.find_all("header"):
+        if not tag.find_parent(["article", "main", "section"]):
+            tag.decompose()
+    for tag in soup.find_all(attrs={"role": re.compile(r"^(navigation|banner|contentinfo|search)$", re.I)}):
         tag.decompose()
     # Append each link's absolute URL inline (e.g. "Show Title [https://...]") so the
     # model can return the real per-event link instead of falling back to the homepage.
