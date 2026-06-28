@@ -48,6 +48,7 @@ sources:
   # ---- University & college galleries ----
   - { name: "SDSU Gallery Program",           url: "https://art.sdsu.edu/gallery-program",                                     type: html }
   - { name: "UCSD Stuart Collection",         url: "https://stuartcollection.ucsd.edu/",                                       type: html }
+  - { name: "UCSD Mandeville Art Gallery",    url: "https://mandevilleartgallery.ucsd.edu/",                                   type: html }
   - { name: "USD Hoehn Family Galleries",     url: "https://www.sandiego.edu/galleries/exhibitions/",                          type: html }
   - { name: "MiraCosta Kruglak Gallery",      url: "https://kruglakgallery.weebly.com/",                                       type: html }
   - { name: "Palomar College Boehm Gallery",  url: "https://www.palomar.edu/boehmgallery/",                                    type: html }
@@ -55,6 +56,7 @@ sources:
   - { name: "Mesa College Art Gallery",       url: "https://www.sdmesa.edu/about-mesa/galleries-and-attractions/mesa-college-art-gallery/exhibits/index.shtml", type: html }
   - { name: "Grossmont Hyde Art Gallery",     url: "https://www.grossmont.edu/get-involved/arts-and-culture/hyde-art-gallery/index.php", type: html }
   - { name: "City College City Gallery",      url: "https://citygallerysdcc.weebly.com/",                                      type: html }
+  - { name: "PLNU Keller & Love Galleries",   url: "https://www.pointloma.edu/opportunities/gallery-exhibition",                type: html }
 
   # ---- Art walks, festivals & neighborhood arts events ----
   - { name: "Mission Fed ArtWalk",            url: "https://www.artwalksandiego.org/missionfed/",                              type: html }

@@ -28,8 +28,8 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "9"   # bump when assets/style.css changes; render() stamps it into the pages
-MAX_TEXT_CHARS = 30000
+STYLE_VERSION = "10"   # bump when assets/style.css changes; render() stamps it into the pages
+MAX_TEXT_CHARS = 60000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
 RENDER_MIN_CHARS = 800   # below this, retry with a headless browser (if --render-js)
@@ -120,6 +120,29 @@ def _extract_text(html: str, url: str):
             tag.decompose()
     for tag in soup.find_all(attrs={"role": re.compile(r"^(navigation|banner|contentinfo|search)$", re.I)}):
         tag.decompose()
+    # Many CMS sites (e.g. KPBS/Brightspot) build their menu/header/footer from <div>s with
+    # descriptive class or id names rather than semantic tags, so the strips above miss them
+    # and the menu (bloated further because we append every link's full URL below) blows past
+    # the cap. Remove elements whose id/class marks them as chrome — but never one that already
+    # contains date-like text, which is probably an events block in a class we'd otherwise hit.
+    _CHROME = re.compile(r"(?:^|[^a-z])(nav|navbar|navigation|menu|megamenu|mainmenu|submenu|"
+                         r"masthead|topbar|siteheader|site-header|globalheader|global-header|"
+                         r"pageheader|page-header|sitefooter|site-footer|globalfooter|colophon|"
+                         r"drawer|offcanvas|off-canvas|hamburger|flyout|breadcrumb|skiplink|"
+                         r"skip-link|sharebar|socialbar|social-bar|subscribe|newsletter|cookie|"
+                         r"gdpr|utility-nav|utilitynav)(?:$|[^a-z])", re.I)
+    _DATEISH = re.compile(r"\b(january|february|march|april|may|june|july|august|september|"
+                          r"october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|"
+                          r"oct|nov|dec)\b[ .,\-/]*\d", re.I)
+    for tag in soup.find_all(True):
+        if tag.parent is None or tag.attrs is None:
+            continue  # detached when an ancestor was already decomposed in this loop
+        if tag.name in ("a", "li", "html", "body", "main", "article", "time"):
+            continue
+        ident = ((tag.get("id") or "") + " " + " ".join(tag.get("class") or [])).strip()
+        if ident and _CHROME.search(ident) \
+           and not _DATEISH.search(tag.get_text(" ", strip=True)[:400]):
+            tag.decompose()
     # Append each link's absolute URL inline (e.g. "Show Title [https://...]") so the
     # model can return the real per-event link instead of falling back to the homepage.
     for a in soup.find_all("a", href=True):
@@ -345,7 +368,7 @@ Rules:
 - Ignore site navigation, ads, newsletter signups, store/shop product pages, and unrelated news articles.
 - Do NOT include classes, workshops, courses, camps, summer or youth programs, children's activities, member-only events, fundraisers, or galas. Only public art exhibitions and art events (openings, receptions, art walks, artist talks, art markets).
 - When a date range is shown (e.g. "March 22 - September 13", "through Aug 9", "on view May 1-Aug 1"), you MUST capture BOTH start_date and end_date. Never return only the start date when an end date is present in the text.
-- type: use "closing" for final-day/last-chance shows; "opening"/"reception" for new shows or receptions; "art_walk" for art walks/crawls; "talk" for lectures/tours; "market" for art markets/fairs; otherwise "exhibition".
+- type: ANY show with a date RANGE is "exhibition" (the multi-day run is what's on view) — even when the page also lists an opening or reception, the show itself stays "exhibition", NOT "reception"/"opening". Reserve "opening"/"reception" for a genuinely single-day opening or reception event (put that day in start_date and leave end_date ""). Use "closing" for final-day/last-chance shows; "art_walk" for art walks/crawls; "talk" for lectures/tours; "market" for art markets/fairs; otherwise "exhibition".
 - Set "notable" true for museum shows, closings happening soon, and art walks.
 - Links in the page text appear in square brackets, e.g. "Show Title [https://gallery.com/exhibitions/show]". For "url", copy the bracketed link that goes to THIS one event's OWN detail page — the deepest, most specific link for it (e.g. https://oma-online.org/events/artist-alliance-monthly-social-jun-28/), and STRONGLY prefer the venue's or organizer's own site. PARAMOUNT: never use a link to a page that lists many events — a homepage, or any calendar / "events" / "exhibitions" / category / listing page (e.g. https://oma-online.org/events/). Also do NOT use a different calendar, listings/aggregator site, or ticketing platform (e.g. Eventbrite, Meetup) even if one is shown. If this event has no specific same-site detail link in the text, use "".
 - Images in the page text are tagged like {image: https://gallery.com/photo.jpg}. For "image", copy the one that clearly belongs to THAT specific exhibition/event (usually the closest tagged image). Leave "" if none is clearly its own.
@@ -456,6 +479,38 @@ def norm_key(ev: dict) -> str:
     v = re.sub(r"[^a-z0-9]+", "", (ev.get("venue") or "").lower())[:10]
     return f"{t}|{v}"
 
+LAST_CHANCE_DAYS = 10  # a run is "closing soon" / "Final Day" only within this many days of its end
+
+def reconcile_type(ev: dict) -> str:
+    """THE GENERAL RULE — applied to every event from every source.
+
+    A label that marks a single MOMENT in a show's life — its opening/reception (the first day)
+    or its closing / "Final Day" (the last day) — is only valid near that moment. Whenever the
+    event's own dates contradict the label, the show is simply on view ("exhibition"). This keeps
+    any source from surfacing a stale badge:
+      • a show that opened weeks ago but still runs        -> not "Reception"/"Opening", just "On View"
+      • a months-long run the model tagged "closing"       -> not "Final Day", just "On View"
+    Genuine single-day events (no distinct end date) and still-upcoming openings are left untouched.
+    Because the scraper re-runs daily, a show legitimately becomes "closing" again only once it is
+    truly within LAST_CHANCE_DAYS of its end — so the kicker stays in step with the closing-soon
+    overlay (both keyed off the same window and the same dates, never off the venue).
+    """
+    typ = ev.get("type") or "exhibition"
+    sd, ed = ev.get("start_date") or "", ev.get("end_date") or ""
+    if not (ed and ed != sd):          # single-day or open-ended: keep the moment label as given
+        return typ
+    try:
+        s = dt.date.fromisoformat(sd) if sd else None
+        e = dt.date.fromisoformat(ed)
+    except ValueError:
+        return typ                     # unparseable dates: don't second-guess the model
+    t = today()
+    if typ in ("opening", "reception") and s is not None and s < t:
+        return "exhibition"            # the opening day has passed; it's an on-view show now
+    if typ == "closing" and e > t + dt.timedelta(days=LAST_CHANCE_DAYS):
+        return "exhibition"            # the end is not near; a "Final Day" badge would be false
+    return typ
+
 def merge(existing: list[dict], scraped: list[dict]) -> list[dict]:
     seen_first = {norm_key(e): e.get("first_seen") for e in existing}
     by_key: dict[str, dict] = {}
@@ -465,6 +520,7 @@ def merge(existing: list[dict], scraped: list[dict]) -> list[dict]:
         ev["start_date"] = ev.get("start_date") or ""
         ev["end_date"] = ev.get("end_date") or ""
         ev["code"] = code_for(ev.get("neighborhood", ""))
+        ev["type"] = reconcile_type(ev)
         ev["is_pick"] = bool(ev.get("notable")) or ev.get("type") in {"opening", "closing", "reception", "art_walk"}
         ev["first_seen"] = seen_first.get(k, today().isoformat())
         ev.setdefault("confidence", "medium")
@@ -617,7 +673,7 @@ def derive_facts(ev: dict) -> dict:
         end = dt.date.fromisoformat(e)
         # only a genuine multi-day show that's about to close — never a single-day event
         # (an opening/talk whose end_date == start_date is happening "today", not "last chance")
-        closing_soon = (s != e) and (today() <= end <= today() + dt.timedelta(days=10))
+        closing_soon = (s != e) and (today() <= end <= today() + dt.timedelta(days=LAST_CHANCE_DAYS))
     except ValueError:
         pass
     text = ((ev.get("title") or "") + " " + (ev.get("description") or "")).lower()
@@ -1110,6 +1166,18 @@ def drop_generic_images(events: list[dict]) -> None:
             for e in evs:
                 e["image"] = ""
 
+def birthday_payload() -> str:
+    """Compact JSON array of the birthday artists, embedded into the home page so the
+    'Born on This Day' feature needs no runtime fetch. The per-day choice is made client-side
+    (assets/birthday.js) from the visitor's own date, so it changes daily between builds too."""
+    try:
+        data = json.load(open(os.path.join(ROOT, "data", "birthdays.json")))
+        artists = data.get("artists", [])
+    except Exception:
+        artists = []
+    payload = json.dumps(artists, ensure_ascii=False, separators=(",", ":"))
+    return payload.replace("<", "\\u003c")  # never let a stray '<' break the <script> block
+
 def render(events: list[dict], horizon: int) -> None:
     events = collapse_duplicates(events)  # fold same-event duplicates from multiple sources
     drop_generic_images(events)           # blank site-logo / default / reused-across-events photos
@@ -1160,6 +1228,8 @@ def render(events: list[dict], horizon: int) -> None:
     s = replace_between(s, "<!-- AUTO:OPENHEAD:START -->", "<!-- AUTO:OPENHEAD:END -->", head)
     s = replace_between(s, "<!-- AUTO:OPENSUB:START -->", "<!-- AUTO:OPENSUB:END -->", sub)
     s = replace_between(s, "<!-- AUTO:HIGHLIGHTS:START -->", "<!-- AUTO:HIGHLIGHTS:END -->", highlights)
+    s = replace_between(s, "<!-- AUTO:BIRTHDAY:START -->", "<!-- AUTO:BIRTHDAY:END -->", birthday_payload())
+    s = re.sub(r"birthday\.js\?v=\d+", f"birthday.js?v={STYLE_VERSION}", s)
     s = re.sub(r"style\.css\?v=\d+", f"style.css?v={STYLE_VERSION}", s)
     open(p, "w").write(s)
 
@@ -1224,6 +1294,7 @@ def main(argv=None) -> int:
     ap.add_argument("--ignore-robots", action="store_true", help="bypass robots.txt for all sources")
     ap.add_argument("--render-js", action="store_true", help="render JS-heavy pages with a headless browser when static text is thin")
     ap.add_argument("--keys", action="store_true", help="list each current event with its norm_key (for editorial.json), then exit")
+    ap.add_argument("--debug", metavar="NAME_OR_URL", help="fetch ONE source (by name substring or URL), dump what the scraper extracts + a raw-HTML sample, then exit")
     args = ap.parse_args(argv)
     results: list[dict] = []
 
@@ -1242,6 +1313,32 @@ def main(argv=None) -> int:
 
     if args.keys:
         dump_keys(existing)
+        return 0
+
+    if args.debug:
+        import yaml as _yaml
+        try:
+            _srcs = _yaml.safe_load(open(SOURCES))["sources"]
+        except Exception:
+            _srcs = []
+        m = next((s for s in _srcs if args.debug.lower() in (s.get("name", "") or "").lower()), None)
+        durl = (m["url"] if m else args.debug)
+        dfr = bool(m.get("force_render")) if m else False
+        print(f"DEBUG  {(m['name'] if m else durl)}\n  url: {durl}  force_render={dfr}\n")
+        text, status, image = fetch_text(durl, ignore_robots=True, render=True, force_render=dfr)
+        print(f"  fetch status: {status}")
+        if text:
+            print(f"  extracted text: {len(text)} chars | inline links: {text.count('[http')} | og:image: {image}")
+            print("\n  ===== EXTRACTED TEXT (first 1800 chars) =====\n" + text[:1800])
+            print("\n  ===== EXTRACTED TEXT (last 700 chars) =====\n" + text[-700:])
+        else:
+            print("  (no text extracted)")
+        try:
+            import requests as _rq
+            _r = _rq.get(durl, headers={"User-Agent": BROWSER_UA}, timeout=REQUEST_TIMEOUT)
+            print(f"\n  ===== RAW HTML (first 2500 chars, status {_r.status_code}) =====\n" + _r.text[:2500])
+        except Exception as _e:
+            print("  raw fetch failed:", _e)
         return 0
 
     if args.no_fetch:
