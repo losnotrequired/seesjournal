@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>A Tide That Refuses to Settle &mdash; Sees Reviews</title><meta name="description" content="Okonkwo turns the gallery into a slow machine for noticing — a show that earns the patience it asks for."><link rel="icon" href="../favicon.png" type="image/png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="../assets/style.css?v=9"><style>
+  .rev-hero{max-width:760px}
+  .rev-lead{text-align:center;max-width:680px;margin:0 auto;font-size:18px;color:#6b6258}
+  .rev-list{max-width:880px;margin:34px auto 0;display:flex;flex-direction:column;gap:0}
+  .rev-card{display:grid;grid-template-columns:84px 1fr;gap:20px;padding:26px 0;border-top:1px solid var(--rule-soft);align-items:start}
+  .rev-card:first-child{border-top:none}
+  .rev-card__score{font-family:'Lora',serif;font-weight:600;font-size:30px;color:var(--ink-strong);line-height:1;text-align:center}
+  .rev-card__score small{display:block;font-family:'Quicksand',sans-serif;font-weight:600;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#9a948a;margin-top:5px}
+  .rev-card__title{font-family:'Lora',serif;font-weight:600;font-size:23px;line-height:1.2;color:var(--ink-strong);margin:0}
+  .rev-card__title a{color:inherit}
+  .rev-card__title a:hover{color:var(--blue)}
+  .rev-card__show{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--blue);margin:5px 0 0}
+  .rev-card__dek{font-size:15.5px;line-height:1.5;color:#5c5650;margin:8px 0 0}
+  .rev-card__meta{font-family:'Quicksand',sans-serif;font-size:12.5px;color:#9a948a;margin:9px 0 0}
+  .rev-empty{text-align:center;color:#9a948a;font-style:italic;margin:48px 0}
+  .rev-back{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-dark)}
+  .rev-kick{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin:18px 0 6px}
+  .rev-title{font-family:'Lora',serif;font-weight:600;font-size:38px;line-height:1.12;color:var(--ink-strong);margin:0}
+  .rev-dek{font-family:'Lora',serif;font-style:italic;font-size:20px;line-height:1.4;color:#5c5650;margin:14px 0 0}
+  .rev-meta{font-family:'Quicksand',sans-serif;font-size:13.5px;color:#8a8278;margin:16px 0 0;border-bottom:1px solid var(--rule-soft);padding-bottom:20px}
+  .rev-meta b{color:var(--ink-strong);font-weight:600}
+  .rev-photo{margin:24px 0 0;border:1px solid var(--rule-soft);overflow:hidden}
+  .rev-photo img{width:100%;display:block}
+  .scorecard{margin:28px 0;background:#f7f5f0;border:1px solid var(--rule-soft);border-radius:12px;padding:22px 24px;display:grid;grid-template-columns:150px 1fr;gap:26px;align-items:center}
+  .scorecard__overall{text-align:center;border-right:1px solid var(--rule-soft);padding-right:20px}
+  .scorecard__num{display:block;font-family:'Lora',serif;font-weight:700;font-size:46px;line-height:1;color:var(--ink-strong)}
+  .scorecard__stars{display:block;color:#e0a52e;font-size:15px;letter-spacing:2px;margin:6px 0 0}
+  .scorecard__cap{display:block;font-family:'Quicksand',sans-serif;font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#9a948a;margin:7px 0 0}
+  .scorecard__axes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+  .axis{display:grid;grid-template-columns:1fr auto 18px;align-items:center;gap:14px}
+  .axis__label{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13.5px;color:#5c5650}
+  .axis__dots{display:inline-flex;gap:4px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#e0ddd5}
+  .dot.on{background:var(--blue)}
+  .axis__n{font-family:'Quicksand',sans-serif;font-weight:700;font-size:13px;color:var(--ink-strong);text-align:right}
+  .rev-body{max-width:680px;font-size:18px;line-height:1.72;color:var(--ink)}
+  .rev-body p{margin:0 0 20px}
+  .rev-body h2{font-family:'Lora',serif;font-weight:600;font-size:24px;color:var(--ink-strong);margin:34px 0 12px}
+  .rev-body h3{font-family:'Lora',serif;font-weight:600;font-size:19px;color:var(--ink-strong);margin:28px 0 10px}
+  .rev-body blockquote{margin:24px 0;padding:4px 0 4px 22px;border-left:3px solid var(--blue);font-family:'Lora',serif;font-style:italic;font-size:21px;line-height:1.5;color:#4a453f}
+  .rev-body blockquote p{margin:0}
+  .rev-body a{color:var(--blue);border-bottom:1px solid rgba(53,124,196,.35)}
+  .rev-body a:hover{border-bottom-color:var(--blue)}
+  .rev-body hr{border:none;border-top:1px solid var(--rule-soft);margin:32px 0}
+  .rev-foot{max-width:680px;margin:36px 0 0;padding-top:22px;border-top:1px solid var(--rule-soft);font-family:'Quicksand',sans-serif;font-size:14px;color:#8a8278}
+  .rev-foot a{color:var(--blue);font-weight:600}
+  @media(max-width:620px){
+    .rev-title{font-size:29px} .scorecard{grid-template-columns:1fr;gap:18px}
+    .scorecard__overall{border-right:none;border-bottom:1px solid var(--rule-soft);padding:0 0 16px}
+    .rev-card{grid-template-columns:64px 1fr;gap:14px} .rev-card__score{font-size:25px}
+  }
+</style></head><body id="top"><header class="site-header"><div class="wrap site-header__in"><a href="../index.html" class="logo" aria-label="Sees Journal"><img src="../assets/images/logo.png" alt="Sees Journal"></a><nav class="topnav" aria-label="Primary"><a href="../index.html">Today</a><a href="../onview.html">Calendar</a><a href="../standouts.html">Standouts</a><a href="../reviews.html">Reviews</a><a href="../places.html">Atlas</a><a href="../essays.html">Essays</a></nav></div></header><div class="wrap" style="max-width:760px"><p style="margin:8px 0 0"><a class="rev-back" href="../reviews.html">&#8592; Reviews</a></p><p class="rev-kick">Review</p><h1 class="rev-title">A Tide That Refuses to Settle</h1><p class="rev-dek">Okonkwo turns the gallery into a slow machine for noticing — a show that earns the patience it asks for.</p><p class="rev-meta"><b>Tidal Register by Maya Okonkwo</b> &nbsp;&middot;&nbsp; Harbor Annex &middot; Barrio Logan &nbsp;&middot;&nbsp; June 6 – August 30, 2026<br><span style="color:#9a948a">By R. Alvarez &middot; Jun 22, 2026</span></p><div class="scorecard"><div class="scorecard__overall"><span class="scorecard__num">4.4</span><span class="scorecard__stars">★★★★☆</span><span class="scorecard__cap">Sees Score</span></div><ul class="scorecard__axes"><li class="axis"><span class="axis__label">Originality</span><span class="axis__dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span><span class="axis__n">5</span></li><li class="axis"><span class="axis__label">Installation</span><span class="axis__dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span></span><span class="axis__n">4</span></li><li class="axis"><span class="axis__label">Concept</span><span class="axis__dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span><span class="axis__n">5</span></li><li class="axis"><span class="axis__label">Historical importance</span><span class="axis__dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span><span class="dot"></span></span><span class="axis__n">3</span></li><li class="axis"><span class="axis__label">Emotional impact</span><span class="axis__dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span><span class="axis__n">5</span></li></ul></div><div class="rev-body"><p>The first thing you notice in <em>Tidal Register</em> is what you can't quite see. Okonkwo has lowered the lights to the level of a harbor at dusk, and for a full minute the room reads as nearly empty. Then the eyes adjust, and the work arrives the way a tide does — not as an event but as a condition you were already standing in.</p>
+<p>The show gathers eleven years of the artist's salt drawings, made by letting seawater evaporate on prepared paper. Hung in a long unbroken line, they function less as discrete pieces than as a single instrument being tuned. The early sheets are tentative, almost apologetic. By the far wall the salt has been allowed to take over completely, and the paper has the authority of something found rather than made.</p>
+<h2>The argument</h2>
+<p>What keeps this from being a one-note exercise in process is the <strong>wall text Okonkwo refuses to write</strong>. There are no dates, no place names, no explanation of which sheet came from which body of water. The viewer is denied the documentary reading the work seems to promise. That withholding <em>is</em> the concept, and it is a generous one: it returns your attention to the surface, to the slow crystalline drift, to the simple fact of looking.</p>
+<blockquote><p>The salt is not a metaphor for memory. It is the memory — a literal record of a specific volume of water that no longer exists in that form.</p></blockquote>
+<p>If there is a limit here, it is one of scale rather than ambition. The single line of drawings is so persuasive that the two sculptural works in the back room feel like a different show, and a lesser one. Trust the drawings; they are doing everything.</p>
+<p>By the time you reach the end and turn back, the room has changed again — or you have. That reversal, quiet and unforced, is the rarest thing an exhibition can give you. Go in the late afternoon, give it the half hour it wants, and let your eyes do the work. More on the space is in the <a href="../places.html" target="_blank" rel="noopener noreferrer">Atlas</a>.</p></div><p class="rev-foot">Scored on five axes &mdash; originality, installation, concept, historical importance, emotional impact &mdash; for a single Sees Score. Find the venue in the <a href="../places.html">Atlas</a>.</p></div><footer class="site-footer"><div class="wrap"><div class="logo footlogo"><img src="../assets/images/logo.png" alt="Sees Journal"></div><p class="mission">An <em>independent</em> listing of everything on view in San Diego, California &mdash; and beyond.</p><div class="footlinks"><a href="../about.html">About</a><a href="../contact.html">Contact</a><a href="../press.html">Press</a></div><hr class="footrule"><p class="copy">Sees Journal &middot; San Diego</p></div></footer><a href="#top" class="totop" aria-label="Back to top">&#8593;</a></body></html>

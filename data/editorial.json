@@ -1,0 +1,22 @@
+{
+  "_README": "Editor-owned ratings for Calendar listings. The scraper NEVER writes this file, so your ratings survive every re-scrape; they are merged into the listings only at render time. Add one entry per show, keyed by its norm_key (see EDITORIAL.md). Keys starting with '_' are documentation and are ignored. To add a real rating: copy the _example block below, rename its key to the show's real norm_key, and fill in the fields.",
+  "_fields": {
+    "rating": "integer 1-5 - shown as stars",
+    "why": "<=40 words - why it matters (shown in italic under the listing)",
+    "who": "short phrase - who should go",
+    "time": "e.g. '30-45 min' - how long to budget",
+    "price": "'Free' or 'Paid' - overrides the automatic Free/Paid detection",
+    "first_timer": "true if it is a good first visit",
+    "hidden_gem": "true to flag it as a hidden gem",
+    "status": "optional override - 'Opening' | 'On View' | 'Last Chance'"
+  },
+  "_example": {
+    "rating": 5,
+    "why": "One of the strongest exhibitions in Southern California this month. Skip Gallery 1 if short on time - Gallery 3 is essential.",
+    "who": "Anyone serious about contemporary art",
+    "time": "45-60 min",
+    "price": "Paid",
+    "first_timer": true,
+    "hidden_gem": false
+  }
+}

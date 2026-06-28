@@ -23,11 +23,12 @@ from urllib.robotparser import RobotFileParser
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data", "events.json")
+EDITORIAL_PATH = os.path.join(ROOT, "data", "editorial.json")  # editor-owned ratings; survives re-scrapes
 SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml")
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "7"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "9"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 16000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -579,6 +580,80 @@ def card_date(ev: dict) -> str:
         return f"Opens {fmt(s)}" if (sd and sd > t) else f"From {fmt(s)}"
     return ""
 
+_EDITORIAL = None
+def load_editorial() -> dict:
+    """Editor-owned ratings (data/editorial.json), keyed by norm_key. Loaded once and
+    cached. The scraper never writes this file, so ratings persist across re-scrapes;
+    they're merged in only at render time. Keys starting with '_' are docs and ignored."""
+    global _EDITORIAL
+    if _EDITORIAL is None:
+        try:
+            with open(EDITORIAL_PATH, encoding="utf-8") as f:
+                raw = json.load(f)
+            _EDITORIAL = {k: v for k, v in raw.items() if not k.startswith("_") and isinstance(v, dict)}
+        except (FileNotFoundError, ValueError):
+            _EDITORIAL = {}
+    return _EDITORIAL
+
+def derive_facts(ev: dict) -> dict:
+    """The factual half of the block — what the scraper can fill on its own."""
+    closing_soon = False
+    s, e = ev.get("start_date") or "", ev.get("end_date") or ""
+    try:
+        end = dt.date.fromisoformat(e)
+        # only a genuine multi-day show that's about to close — never a single-day event
+        # (an opening/talk whose end_date == start_date is happening "today", not "last chance")
+        closing_soon = (s != e) and (today() <= end <= today() + dt.timedelta(days=10))
+    except ValueError:
+        pass
+    text = ((ev.get("title") or "") + " " + (ev.get("description") or "")).lower()
+    return {"closing_soon": closing_soon, "free": bool(re.search(r"\bfree\b", text))}
+
+def _stars(n) -> str:
+    n = max(0, min(5, int(n)))
+    return '<span class="stars" aria-label="%d out of 5 stars">%s%s</span>' % (n, "\u2605" * n, "\u2606" * (5 - n))
+
+def rating_block(ev: dict, compact: bool = False) -> str:
+    """The editorial block on a listing: stars + the 40-word case + fact/judgment badges.
+    Editorial fields come from editorial.json; closing-soon and free are auto-derived.
+    Returns '' when there's nothing to show, so un-rated listings render exactly as before."""
+    ed = load_editorial().get(norm_key(ev), {})
+    facts = derive_facts(ev)
+    badges = []
+    if (ed.get("status") == "Last Chance") or facts["closing_soon"]:
+        badges.append('<span class="badge badge--last">Last chance</span>')
+    elif ed.get("status") == "Opening":
+        badges.append('<span class="badge badge--open">Opening</span>')
+    price = ed.get("price") or ("Free" if facts["free"] else "")
+    if price:
+        badges.append('<span class="badge badge--%s">%s</span>' % ("free" if str(price).lower() == "free" else "paid", esc(str(price))))
+    if ed.get("time"):
+        badges.append('<span class="badge badge--time">%s</span>' % esc(str(ed["time"])))
+    if ed.get("hidden_gem"):
+        badges.append('<span class="badge badge--gem">Hidden gem</span>')
+    if ed.get("first_timer"):
+        badges.append('<span class="badge badge--first">First-timer friendly</span>')
+    stars = _stars(ed["rating"]) if ed.get("rating") else ""
+    why = esc(str(ed["why"])) if ed.get("why") else ""
+    who = esc(str(ed["who"])) if ed.get("who") else ""
+    if compact:                              # calendar mini-cards: stars + badges only
+        if not (stars or badges):
+            return ""
+    elif not (stars or why or who or badges):
+        return ""
+    out = '<div class="card__rate">'
+    if stars:
+        out += stars
+    if badges:
+        out += '<span class="card__badges">' + "".join(badges) + "</span>"
+    out += "</div>"
+    if not compact:
+        if why:
+            out += '<p class="card__why">%s</p>' % why
+        if who:
+            out += '<p class="card__who"><span>For</span> %s</p>' % who
+    return out
+
 def card(ev: dict) -> str:
     kick = KICK.get(ev.get("type"), "On View")
     slug = ev.get("type") or "exhibition"
@@ -601,6 +676,7 @@ def card(ev: dict) -> str:
             f'<span class="card__date">{esc(date)}</span></div>'
             f'<div class="card__body"><div class="card__title">{esc(ev.get("title",""))}</div>'
             f'<div class="card__venue">{place}</div>'
+            f'{rating_block(ev)}'
             f'<span class="card__more">More Info</span></div></a>')
 
 def grid(events: list[dict]) -> str:
@@ -647,7 +723,8 @@ def calendar(events: list[dict], horizon: int) -> str:
                     f'<div class="mcard__thumb thumb--{slug}">{thumb}</div>'
                     f'<div class="mcard__main"><span class="card__kick kick--{slug}">{esc(label)}</span>'
                     f'<div class="mcard__title">{esc(ev.get("title",""))}</div>'
-                    f'<div class="mcard__venue">{place}</div></div>'
+                    f'<div class="mcard__venue">{place}</div>'
+                    f'{rating_block(ev, compact=True)}</div>'
                     f'<div class="mcard__when">{esc(mwhen)}</div></a>')
             else:  # routine entry: a compact, FULLY-CLICKABLE row (whole tile links; no "Info" arrow)
                 rwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
@@ -1109,12 +1186,30 @@ def write_summary(results: list[dict], kept: int, horizon: int) -> None:
     print(f"\nSummary: {kept} in-window | {total} extracted | "
           f"{n_ok}/{len(results)} sources produced events | {len(dead)} returned nothing")
 
+def dump_keys(events: list[dict]) -> None:
+    """List current events with their norm_key, so a rating can be added to
+    data/editorial.json by copy-paste. Marks shows that already have a rating."""
+    ed = load_editorial()
+    rows = [e for e in events if isinstance(e, dict) and e.get("title")]
+    if not rows:
+        print("No events in events.json yet \u2014 run a full scrape first (needs ANTHROPIC_API_KEY),")
+        print("then `--keys` will list every show with its key.")
+        return
+    print(f"{len(rows)} event(s) in events.json.  \u2713 = already rated in editorial.json\n")
+    for e in sorted(rows, key=lambda x: ((x.get("venue") or "").lower(), (x.get("title") or "").lower())):
+        k = norm_key(e)
+        mark = "\u2713" if k in ed else " "
+        print(f"  {mark} {k}")
+        print(f"      {e.get('title','')}  \u2014  {e.get('venue','')}")
+    print("\nTo rate one: add a block keyed by its norm_key to data/editorial.json (see EDITORIAL.md).")
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-fetch", action="store_true", help="skip scraping; re-render existing events.json")
     ap.add_argument("--horizon", type=int, default=HORIZON_DEFAULT, help="window length in days")
     ap.add_argument("--ignore-robots", action="store_true", help="bypass robots.txt for all sources")
     ap.add_argument("--render-js", action="store_true", help="render JS-heavy pages with a headless browser when static text is thin")
+    ap.add_argument("--keys", action="store_true", help="list each current event with its norm_key (for editorial.json), then exit")
     args = ap.parse_args(argv)
     results: list[dict] = []
 
@@ -1130,6 +1225,10 @@ def main(argv=None) -> int:
     for e in existing:                        # clean any date baked onto cached titles too
         if isinstance(e, dict) and e.get("title"):
             e["title"] = clean_title(e["title"])
+
+    if args.keys:
+        dump_keys(existing)
+        return 0
 
     if args.no_fetch:
         events = existing

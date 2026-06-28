@@ -314,3 +314,22 @@ a{color:inherit;text-decoration:none}
 .card__panel.is-blue .card__kick{background:rgba(255,255,255,.22);color:#fff}
 .card__panel.is-blue .card__date,
 .card__panel.is-blue .card__when{color:#fff}
+
+/* ── Calendar rating block (editorial layer) ─────────────────────────────── */
+.card__rate{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:7px 0 0}
+.stars{color:#e0a52e;font-size:14px;letter-spacing:1px;line-height:1;white-space:nowrap}
+.card__badges{display:inline-flex;flex-wrap:wrap;gap:5px}
+.badge{font-family:'Quicksand',sans-serif;font-weight:600;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;line-height:1.55;white-space:nowrap}
+.badge--last{background:#f6e2db;color:#a8472b}
+.badge--open{background:#dde9f7;color:#2c68a6}
+.badge--free{background:#e1efe1;color:#2f6b3c}
+.badge--paid{background:#efe8da;color:#7a5a1e}
+.badge--time{background:#eceae5;color:#6b6258}
+.badge--gem{background:#efe6f6;color:#6b3fa0}
+.badge--first{background:#e5edf6;color:#2c68a6}
+.card__why{font-family:'Lora',serif;font-style:italic;font-size:13px;line-height:1.45;color:#5c5650;margin:7px 0 0}
+.card__who{font-family:'Quicksand',sans-serif;font-size:12px;color:#8a8278;margin:5px 0 0}
+.card__who span{font-weight:700;color:#6b6258;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-right:3px}
+/* compact rating block inside calendar mini-cards */
+.mcard .card__rate{margin-top:5px;gap:4px 7px}
+.mcard .stars{font-size:13px}
