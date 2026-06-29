@@ -86,24 +86,93 @@
     links.appendChild(a1); links.appendChild(a2);
   }
 
-  // Progressive enhancement: free-licensed portrait from Wikimedia Commons only.
-  try {
-    var wikiTitle = (artist.wiki || artist.name || "").replace(/ /g, "_");
-    fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(wikiTitle))
+  // ---------- Images: only ever display a Wikimedia Commons (public-domain or freely-licensed)
+  //            image, always shown with its author + license credit fetched live from Commons. ----------
+  function isCommons(src) { return !!src && src.indexOf("/commons/") !== -1; }
+  // bump a Commons thumb URL (".../320px-Name.jpg") to a larger render for crisper display
+  function upsize(src, w) { return src.replace(/\/\d+px-/, "/" + w + "px-"); }
+  function summary(title) {
+    return fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" +
+      encodeURIComponent((title || "").replace(/ /g, "_")))
+      .then(function (r) { return r.ok ? r.json() : null; });
+  }
+  function setPortrait(src) {
+    var portrait = document.getElementById("bday-portrait");
+    if (portrait && src) { portrait.style.backgroundImage = 'url("' + src + '")'; portrait.classList.add("has-img"); }
+  }
+  // Derive the "File:Name.ext" page title from a Commons image URL (thumb or original form).
+  function commonsFile(src) {
+    if (!src) return null;
+    var m = src.match(/\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^\/]+?)(?:\/\d+px-[^\/]*)?$/i);
+    return m ? "File:" + decodeURIComponent(m[1]) : null;
+  }
+  // extmetadata Artist is HTML; render it to plain text.
+  function plain(html) { var d = document.createElement("div"); d.innerHTML = html || ""; return (d.textContent || "").replace(/\s+/g, " ").trim(); }
+  // Fetch author + license for a Commons file and render the required attribution into `el`.
+  function showCredit(el, file) {
+    if (!el || !file) return;
+    fetch("https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=extmetadata&titles=" +
+      encodeURIComponent(file))
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
+        var pages = j && j.query && j.query.pages; if (!pages) return;
+        var info = pages[Object.keys(pages)[0]].imageinfo;
+        var md = info && info[0] && info[0].extmetadata; if (!md) return;
+        var author = plain(md.Artist && md.Artist.value) || "Unknown author";
+        var license = plain(md.LicenseShortName && md.LicenseShortName.value);
+        var a = document.createElement("a");
+        a.href = "https://commons.wikimedia.org/wiki/" + encodeURIComponent(file);
+        a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.textContent = author + (license ? " \u00B7 " + license : "") + " \u00B7 Wikimedia Commons";
+        el.innerHTML = ""; el.appendChild(a); el.style.display = "block";
+      }).catch(function () {});
+  }
+
+  // Portrait: prefer the article's Commons lead image; else fall back to the artist's Wikidata
+  // "image" (P18), which is always a free Commons file. The monogram stays if neither exists.
+  try {
+    summary(artist.wiki || artist.name).then(function (j) {
+      if (!j) return;
+      var src = j.thumbnail && j.thumbnail.source;
+      if (isCommons(src)) {
+        setPortrait(upsize(src, 640));
+        showCredit(document.getElementById("bday-portrait-credit"), commonsFile(src));
+      } else if (j.wikibase_item) {
+        fetch("https://www.wikidata.org/w/api.php?action=wbgetclaims&format=json&origin=*&property=P18&entity=" +
+          encodeURIComponent(j.wikibase_item))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (w) {
+            var c = w && w.claims && w.claims.P18 && w.claims.P18[0];
+            var file = c && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value;
+            if (file) {
+              setPortrait("https://commons.wikimedia.org/wiki/Special:FilePath/" +
+                encodeURIComponent(file.replace(/ /g, "_")) + "?width=640");
+              showCredit(document.getElementById("bday-portrait-credit"), "File:" + file);
+            }
+          }).catch(function () {});
+      }
+    }).catch(function () {});
+  } catch (e) { /* offline — monogram stays */ }
+
+  // Signature work: only public-domain works carry a `workwiki` title. Show the image only when it
+  // is Commons-hosted (free) AND the article text names the artist — so a mistaken title can't
+  // surface the wrong picture. Copyrighted works have no Commons image and stay as a link only.
+  try {
+    if (artist.workwiki) {
+      var surname = (artist.name || "").split(/\s+/).pop().toLowerCase();
+      summary(artist.workwiki).then(function (j) {
         if (!j) return;
         var src = j.thumbnail && j.thumbnail.source;
-        // Commons images live under /wikipedia/commons/ and are freely licensed. Skip anything
-        // served locally from en.wikipedia (/wikipedia/en/) — those may be non-free (fair use).
-        if (src && src.indexOf("/commons/") !== -1) {
-          var portrait = document.getElementById("bday-portrait");
-          if (portrait) {
-            portrait.style.backgroundImage = 'url("' + src + '")';
-            portrait.classList.add("has-img");
+        var blurb = ((j.description || "") + " " + (j.extract || "")).toLowerCase();
+        if (isCommons(src) && surname && blurb.indexOf(surname) !== -1) {
+          var img = document.getElementById("bday-workimg");
+          if (img) {
+            img.onerror = function () { img.hidden = true; };
+            img.src = upsize(src, 800); img.alt = artist.work || ""; img.hidden = false;
           }
+          showCredit(document.getElementById("bday-work-credit"), commonsFile(src));
         }
-      })
-      .catch(function () { /* offline or blocked — monogram stays */ });
-  } catch (e) { /* no fetch — monogram stays */ }
+      }).catch(function () {});
+    }
+  } catch (e) { /* offline — link stays */ }
 })();

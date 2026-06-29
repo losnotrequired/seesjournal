@@ -367,17 +367,29 @@ a{color:inherit;text-decoration:none}
 .bday-note{font-size:12.5px;color:var(--ink);opacity:.6;margin-top:16px;max-width:62ch}
 @media (max-width:700px){
   .bday-card{flex-direction:column;gap:0}
-  .bday-portrait{flex-basis:auto;width:100%;min-height:260px}
+  .bday-portrait{flex-basis:auto;width:100%;min-height:0;aspect-ratio:4/5;background-position:center top}
   .bday-body{padding:24px 22px}
   .bday-bio{max-width:none}
 }
 .bday-kicker:empty{display:none}
 
 /* ---------------------------------------------------------------- demo badge + dev disclaimer */
-.site-header__in .demo-tag{align-self:center}
-.demo-tag{display:inline-block;margin-left:10px;font-family:'Quicksand',sans-serif;font-weight:700;
+.site-header__in .beta-tag{align-self:center}
+.beta-tag{display:inline-block;margin-left:10px;font-family:'Quicksand',sans-serif;font-weight:700;
   font-size:11px;line-height:1;letter-spacing:.14em;text-transform:uppercase;color:#fff;
   background:var(--brick);padding:4px 8px 3px;border-radius:5px;vertical-align:middle;white-space:nowrap}
 .dev-disclaimer{max-width:620px;margin:22px auto 0;padding:11px 16px;border:1px solid var(--brick);
   border-radius:6px;background:rgba(168,71,43,.05);font-family:'Quicksand',sans-serif;font-size:13px;
   line-height:1.5;letter-spacing:.01em;color:var(--brick)}
+
+/* signature-work image (public-domain / Commons only; hidden until JS finds a free image) */
+.bday-workimg{display:block;max-width:100%;max-height:340px;width:auto;height:auto;margin:2px auto 14px;
+  border-radius:6px;box-shadow:0 1px 5px rgba(0,0,0,.16)}
+
+/* image attribution credits (author + license from Wikimedia Commons) */
+.bday-credit{display:none;font-family:'Quicksand',sans-serif;font-size:10.5px;letter-spacing:.02em;line-height:1.35}
+.bday-credit a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
+.bday-credit a:hover{opacity:.8}
+.bday-credit--over{position:absolute;left:0;right:0;bottom:0;padding:6px 9px;text-align:left;color:#fff;
+  background:linear-gradient(to top,rgba(0,0,0,.62),rgba(0,0,0,0))}
+.bday-credit--work{color:var(--ink);opacity:.62;margin:-4px 0 12px}

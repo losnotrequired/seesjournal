@@ -103,7 +103,7 @@ sources:
   - { name: "Pages and Canvas (South Bay)",    url: "https://pagesandcanvas.com/",                                              type: html }
 
   # ---- Additional galleries & art spaces ----
-  - { name: "Oolong Gallery",                  url: "https://oolongallery.com/",                                                type: html }
+  - { name: "Oolong Gallery",                  url: "https://oolongallery.com/",                                                type: html, sd_only: true }
   - { name: "La Jolla Art Association",        url: "https://www.lajollaartassociation.org/",                                   type: html }
   - { name: "Meyer Fine Art (Little Italy)",   url: "https://meyerfineartinc.com/exhibitions",                                  type: html }
   - { name: "Space 4 Art",                     url: "https://www.sdspace4art.org/upcoming",                                     type: html }

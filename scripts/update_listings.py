@@ -28,7 +28,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "14"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "17"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 60000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -436,6 +436,18 @@ def clean_title(t: str) -> str:
             break
         t = nt
     return t if len(t) >= 3 else orig                   # never strip a title down to nothing
+
+# Location markers clearly OUTSIDE San Diego County. Used to drop out-of-area shows from a
+# source that also operates elsewhere (e.g. Oolong Gallery, which opened a New York / Tribeca
+# space in 2026 and lists both NYC and San Diego County shows on one page). Only an event's
+# LOCATION fields are tested — never its description — so an SD show that merely features a New
+# York artist is kept. Add a source's `sd_only: true` in sources.yaml to apply this filter.
+_NON_SD_LOCATION = re.compile(r"(new york|tribeca|manhattan|brooklyn|cortlandt|\bnyc\b)", re.I)
+
+def _outside_san_diego(ev: dict) -> bool:
+    """True if the event's location (venue/neighborhood/title) names a place outside SD County."""
+    hay = " ".join(str(ev.get(k, "") or "") for k in ("neighborhood", "venue", "title"))
+    return bool(_NON_SD_LOCATION.search(hay))
 
 def extract_events(text: str, source_url: str, horizon: int, client) -> list[dict]:
     try:
@@ -1376,6 +1388,14 @@ def main(argv=None) -> int:
                         evs = extract_events(text, src["url"], args.horizon, client)
                         n = len(evs)
                         print(f"  extracted {n} candidate event(s)")
+                        # Sources that also operate outside the county (e.g. Oolong's New York
+                        # space) are marked sd_only — drop any show whose location is out of area.
+                        if src.get("sd_only"):
+                            kept = [e for e in evs if not _outside_san_diego(e)]
+                            if len(kept) != len(evs):
+                                print(f"  dropped {len(evs) - len(kept)} out-of-county (non–San Diego) event(s)")
+                            evs = kept
+                            n = len(evs)
                         # If the model didn't find a per-show image, fall back to the page's
                         # share image — but only on focused pages (1-3 events), so a generic
                         # banner doesn't get stamped on every card of a big listing page.
