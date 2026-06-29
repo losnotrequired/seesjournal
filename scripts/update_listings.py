@@ -321,15 +321,20 @@ def _canonical_link(soup, base_url: str) -> str:
 
 def enrich_images(events: list, ignore_robots: bool, limit: int = 60) -> None:
     """Fetch each show's detail page to (a) pull a representative image when the listing
-    didn't supply one, and (b) for SDVAN aggregator links, swap in the gallery's own page so
-    we point at the original source. One fetch per page covers both."""
+    didn't supply one OR only supplied a placeholder/spacer/logo (e.g. a lazy-load dummy or a
+    transparent data-URI), replacing it with the page's real image (preferring og:image), and
+    (b) for SDVAN aggregator links, swap in the gallery's own page so we point at the original
+    source. One fetch per page covers both."""
     fetched = 0
     for ev in events:
         url = ev.get("url") or ""
         if not _is_event_url(url):
             continue
         is_sdvan = _is_sdvan(url)
-        needs_img = not ev.get("image")
+        existing = ev.get("image") or ""
+        # A placeholder/spacer/logo or a data-URI is not a usable image: treat it as missing so the
+        # detail page's real image (og:image) can replace it. Real listing images are left as-is.
+        needs_img = (not existing) or existing.startswith("data:") or _is_generic_image_url(existing)
         if not (needs_img or is_sdvan):    # nothing to gain from a fetch
             continue
         if fetched >= limit:
