@@ -169,11 +169,34 @@
     }).catch(function () {});
   } catch (e) { /* offline — monogram stays */ }
 
-  // Signature work: only public-domain works carry a `workwiki` title. Show the image only when it
-  // is Commons-hosted (free) AND the article text names the artist — so a mistaken title can't
-  // surface the wrong picture. Copyrighted works have no Commons image and stay as a link only.
+  // Signature work image. (a) artist.workimg — a specific image the publisher has chosen to embed
+  // directly (e.g. a copyrighted cover); shown with a short "may be subject to copyright" notice
+  // linking to the source. (b) artist.workwiki — a public-domain work; shown only when it is
+  // Commons-hosted (free) AND the article text names the artist, with full author/license credit.
   try {
-    if (artist.workwiki) {
+    var workImg = document.getElementById("bday-workimg");
+    if (artist.workimg && workImg) {
+      workImg.alt = artist.work || "";
+      workImg.onload = function () {
+        workImg.hidden = false;
+        var cr = document.getElementById("bday-work-credit");
+        if (cr) {
+          cr.innerHTML = "";
+          var note;
+          if (artist.workimgsrc) {
+            note = document.createElement("a");
+            note.href = artist.workimgsrc;
+            note.target = "_blank"; note.rel = "noopener noreferrer";
+            note.textContent = "Image may be subject to copyright";
+          } else {
+            note = document.createTextNode("Image may be subject to copyright");
+          }
+          cr.appendChild(note); cr.style.display = "block";
+        }
+      };
+      workImg.onerror = function () { workImg.hidden = true; };   // a miss leaves the link only
+      workImg.src = artist.workimg;
+    } else if (artist.workwiki) {
       var surname = (artist.name || "").split(/\s+/).pop().toLowerCase();
       summary(artist.workwiki).then(function (j) {
         if (!j) return;
