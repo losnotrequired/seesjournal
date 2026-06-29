@@ -43,7 +43,12 @@
     artist = pool[year % pool.length];
     isBirthday = true;
   } else {
-    artist = artists[doy % artists.length];
+    // Non-birthday days: rotate among artists with reliably free imagery (the classic masters all
+    // have public-domain portraits AND works on Commons), so the slot always shows a picture rather
+    // than a bare monogram. Contemporary artists still headline their own birthdays above.
+    var imgPool = artists.filter(function (a) { return a.era === "classic"; });
+    if (!imgPool.length) imgPool = artists;
+    artist = imgPool[doy % imgPool.length];
     isBirthday = false;
   }
 
@@ -96,9 +101,20 @@
       encodeURIComponent((title || "").replace(/ /g, "_")))
       .then(function (r) { return r.ok ? r.json() : null; });
   }
-  function setPortrait(src) {
+  // Load via a preloader so the background (and the monogram-hiding class) is only applied once the
+  // image actually loads — a 404 (e.g. a thumbnail wider than the original) then falls back to the
+  // original size instead of leaving a blank panel. Credit is shown only on a successful load.
+  function setPortrait(src, fallback, file) {
     var portrait = document.getElementById("bday-portrait");
-    if (portrait && src) { portrait.style.backgroundImage = 'url("' + src + '")'; portrait.classList.add("has-img"); }
+    if (!portrait || !src) return;
+    var im = new Image();
+    im.onload = function () {
+      portrait.style.backgroundImage = 'url("' + src + '")';
+      portrait.classList.add("has-img");
+      if (file) showCredit(document.getElementById("bday-portrait-credit"), file);
+    };
+    im.onerror = function () { if (fallback && fallback !== src) setPortrait(fallback, null, file); };
+    im.src = src;
   }
   // Derive the "File:Name.ext" page title from a Commons image URL (thumb or original form).
   function commonsFile(src) {
@@ -135,8 +151,7 @@
       if (!j) return;
       var src = j.thumbnail && j.thumbnail.source;
       if (isCommons(src)) {
-        setPortrait(upsize(src, 640));
-        showCredit(document.getElementById("bday-portrait-credit"), commonsFile(src));
+        setPortrait(upsize(src, 640), src, commonsFile(src));
       } else if (j.wikibase_item) {
         fetch("https://www.wikidata.org/w/api.php?action=wbgetclaims&format=json&origin=*&property=P18&entity=" +
           encodeURIComponent(j.wikibase_item))
@@ -145,9 +160,9 @@
             var c = w && w.claims && w.claims.P18 && w.claims.P18[0];
             var file = c && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value;
             if (file) {
-              setPortrait("https://commons.wikimedia.org/wiki/Special:FilePath/" +
-                encodeURIComponent(file.replace(/ /g, "_")) + "?width=640");
-              showCredit(document.getElementById("bday-portrait-credit"), "File:" + file);
+              var enc = encodeURIComponent(file.replace(/ /g, "_"));
+              setPortrait("https://commons.wikimedia.org/wiki/Special:FilePath/" + enc + "?width=640",
+                          "https://commons.wikimedia.org/wiki/Special:FilePath/" + enc, "File:" + file);
             }
           }).catch(function () {});
       }
@@ -166,11 +181,15 @@
         var blurb = ((j.description || "") + " " + (j.extract || "")).toLowerCase();
         if (isCommons(src) && surname && blurb.indexOf(surname) !== -1) {
           var img = document.getElementById("bday-workimg");
-          if (img) {
-            img.onerror = function () { img.hidden = true; };
-            img.src = upsize(src, 800); img.alt = artist.work || ""; img.hidden = false;
-          }
-          showCredit(document.getElementById("bday-work-credit"), commonsFile(src));
+          if (!img) return;
+          var triedFallback = false;
+          img.alt = artist.work || "";
+          img.onload = function () { img.hidden = false; showCredit(document.getElementById("bday-work-credit"), commonsFile(src)); };
+          img.onerror = function () {
+            if (!triedFallback) { triedFallback = true; img.src = src; }   // retry at the original size
+            else { img.hidden = true; }                                    // give up -> the link stays
+          };
+          img.src = upsize(src, 800);
         }
       }).catch(function () {});
     }

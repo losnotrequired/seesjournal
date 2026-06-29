@@ -28,7 +28,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "17"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "19"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 60000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -79,7 +79,7 @@ _GENERIC_IMG = re.compile(
     r"(?:^|[/_.\-])(logos?|icons?|sprite|avatar|favicon|placeholder|blank|spacer|pixel|"
     r"banner|sponsor|header|footer|nav|button|default|share|ogimage|"
     r"og[-_]?image|social|brand|branding|fallback|missing|noimage|no[-_]?image|"
-    r"watermark|site[-_]?logo|default[-_]?image)s?(?:$|[/_.\-])", re.I)
+    r"watermark|site[-_]?logo|default[-_]?image|transparent|1x1|lqip|lazyload|dummy)s?(?:$|[/_.\-])", re.I)
 
 def _is_generic_image_url(url: str) -> bool:
     """True for logos, default/share graphics, and other non-event branding images."""
@@ -276,7 +276,8 @@ def _image_from_soup(soup, base_url: str) -> str:
         return og
     # site chrome we never want as an event photo
     chrome = re.compile(r"(?:^|[/_.\-])(logo|icon|sprite|avatar|favicon|placeholder|blank|"
-                        r"spacer|pixel|banner|sponsor|header|footer|nav|button)s?(?:$|[/_.\-])", re.I)
+                        r"spacer|pixel|banner|sponsor|header|footer|nav|button|"
+                        r"transparent|1x1|lqip|lazyload|dummy)s?(?:$|[/_.\-])", re.I)
     # "thumbnail" renditions are usually nav chrome, BUT some sites (e.g. Timken) serve the actual
     # event photo from a /.thumbnails/ path — so only treat thumb as chrome OUTSIDE event folders
     thumbish = re.compile(r"(?:^|[/_.\-])(thumb|thumbnail)s?(?:$|[/_.\-])", re.I)
@@ -623,26 +624,26 @@ def _is_listing_page(url: str) -> bool:
     return last in _LISTING_LAST or bool(_LISTING_CONTAINS.search(last))
 
 def event_link(ev: dict) -> str:
-    """Link to the event's OWN specific page. PARAMOUNT RULE: never link to a page that lists many
-    events (a calendar/category/landing page), never to a *foreign* aggregator, and never to a
-    never-link host (dosd.com). When we don't have the event's own page, send the reader to our
-    onview listing via '#' (card()/grid() convert it) rather than to a general list page."""
+    """Best EXTERNAL destination for an event. Preference: the event's own specific detail page;
+    otherwise the venue's own website (the source) so the reader still lands on the venue — never
+    looped back to our own calendar. Returns "" only when even the source is unlinkable (a
+    never-link host or not a URL); the card then renders unclickable instead of as a dead link."""
     from urllib.parse import urlparse
     u = ev.get("url", "")
     src = ev.get("source", "")
     def never(url): return any(h in (url or "").lower() for h in _NEVER_LINK_HOSTS)
     src_host = urlparse(src).netloc.lower().replace("www.", "") if isinstance(src, str) and src.startswith("http") else ""
-    # 1) the event's own deep page: a real event URL that is not a listing page, not a never-link
-    #    host, and not a *foreign* aggregator calendar
+    # 1) the event's own deep page: a real event URL, not a listing page, not a never-link host,
+    #    and not a *foreign* aggregator calendar
     if _is_event_url(u) and not never(u) and not _is_listing_page(u):
         u_host = urlparse(u).netloc.lower().replace("www.", "")
         if not (_is_aggregator(u) and u_host != src_host):
             return u
-    # 2) the source page ONLY if it is itself a specific event page — most sources are listing
-    #    pages, which we never link to (that is exactly the page this rule forbids)
-    if isinstance(src, str) and src.startswith("http") and not never(src) and not _is_listing_page(src):
+    # 2) fall back to the venue's own site (the source). Even a listing/landing page is fine — it is
+    #    the venue's real site. Only skip never-link hosts (we discover there but don't link out).
+    if isinstance(src, str) and src.startswith("http") and not never(src):
         return src
-    return "#"
+    return ""
 
 def card_date(ev: dict) -> str:
     s, e = ev.get("start_date") or "", ev.get("end_date") or ""
@@ -747,10 +748,7 @@ def card(ev: dict) -> str:
     kick = KICK.get(ev.get("type"), "On View")
     slug = ev.get("type") or "exhibition"
     date = card_date(ev)
-    url = event_link(ev)
-    if url == "#":                       # linkless event -> send to the full listing, not a dead #
-        url = "onview.html"
-    ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
+    url = event_link(ev)               # external venue/event page, or "" if nothing safe to link
     place = esc(ev.get("venue", ""))
     if ev.get("neighborhood"):
         place = (place + " &middot; " if place else "") + esc(ev.get("neighborhood", ""))
@@ -759,14 +757,16 @@ def card(ev: dict) -> str:
     photo = (f'<img class="card__photo" src="{esc(img)}" alt="" loading="lazy" '
              f"onerror=\"this.closest('.card__panel').classList.remove('has-photo');this.closest('.card__panel').classList.add('is-blue');this.remove()\">"
              if img else "")
-    return (f'<a class="card" href="{esc(url)}"{ext}>'
-            f'<div class="card__panel {panel}">{photo}'
-            f'<span class="card__kick kick--{slug}">{esc(kick)}</span>'
-            f'<span class="card__date">{esc(date)}</span></div>'
-            f'<div class="card__body"><div class="card__title">{esc(ev.get("title",""))}</div>'
+    panel_html = (f'<div class="card__panel {panel}">{photo}'
+                  f'<span class="card__kick kick--{slug}">{esc(kick)}</span>'
+                  f'<span class="card__date">{esc(date)}</span></div>')
+    body = (f'<div class="card__body"><div class="card__title">{esc(ev.get("title",""))}</div>'
             f'<div class="card__venue">{place}</div>'
             f'{rating_block(ev)}'
-            f'<span class="card__more">More Info</span></div></a>')
+            + (f'<span class="card__more">More Info</span>' if url else "") + '</div>')
+    if url:
+        return f'<a class="card" href="{esc(url)}" target="_blank" rel="noopener">{panel_html}{body}</a>'
+    return f'<div class="card card--static">{panel_html}{body}</div>'
 
 def grid(events: list[dict]) -> str:
     return '<div class="grid">\n' + "\n".join(card(e) for e in events) + "\n</div>"
@@ -797,8 +797,6 @@ def calendar(events: list[dict], horizon: int) -> str:
             slug = typ or "exhibition"
             url = event_link(ev)
             if typ in featured_types:  # promote to a mini-card
-                href = url if (url and url != "#") else "onview.html"
-                ext = "" if href.endswith(".html") else ' target="_blank" rel="noopener"'
                 label = KICK.get(typ, "On View")
                 img = ev.get("image")
                 thumb = (f'<img class="mcard__img" src="{esc(img)}" alt="" loading="lazy" '
@@ -807,15 +805,17 @@ def calendar(events: list[dict], horizon: int) -> str:
                 if ev.get("neighborhood"):
                     place = (place + " &middot; " if place else "") + esc(ev.get("neighborhood", ""))
                 mwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
-                feats.append(
-                    f'<a class="mcard" href="{esc(href)}"{ext}>'
-                    f'<div class="mcard__thumb thumb--{slug}">{thumb}</div>'
-                    f'<div class="mcard__main"><span class="card__kick kick--{slug}">{esc(label)}</span>'
-                    f'<div class="mcard__title">{esc(ev.get("title",""))}</div>'
-                    f'<div class="mcard__venue">{place}</div>'
-                    f'{rating_block(ev, compact=True)}</div>'
-                    f'<div class="mcard__when">{esc(mwhen)}</div></a>')
-            else:  # routine entry: a compact, FULLY-CLICKABLE row (whole tile links; no "Info" arrow)
+                inner_m = (f'<div class="mcard__thumb thumb--{slug}">{thumb}</div>'
+                           f'<div class="mcard__main"><span class="card__kick kick--{slug}">{esc(label)}</span>'
+                           f'<div class="mcard__title">{esc(ev.get("title",""))}</div>'
+                           f'<div class="mcard__venue">{place}</div>'
+                           f'{rating_block(ev, compact=True)}</div>'
+                           f'<div class="mcard__when">{esc(mwhen)}</div>')
+                if url:
+                    feats.append(f'<a class="mcard" href="{esc(url)}" target="_blank" rel="noopener">{inner_m}</a>')
+                else:
+                    feats.append(f'<div class="mcard mcard--static">{inner_m}</div>')
+            else:  # routine entry: a compact row (whole tile links externally; non-clickable if no link)
                 rwhen = ev.get("time", "") if typ in {"opening", "reception", "art_walk", "talk", "market"} else ""
                 rimg = ev.get("image")
                 rinner = (f'<img class="row__img" src="{esc(rimg)}" alt="" loading="lazy" '
@@ -824,11 +824,10 @@ def calendar(events: list[dict], horizon: int) -> str:
                          f'<span class="row__title">{esc(ev.get("title",""))}</span>'
                          f'<span class="row__venue">{esc(ev.get("venue") or ev.get("neighborhood") or "")}</span>'
                          f'<span class="row__time">{esc(rwhen)}</span>')
-                if url and url != "#":
-                    ext = "" if url.endswith(".html") else ' target="_blank" rel="noopener"'
-                    rows.append(f'<a class="row" href="{esc(url)}"{ext}>{inner}</a>')
+                if url:
+                    rows.append(f'<a class="row" href="{esc(url)}" target="_blank" rel="noopener">{inner}</a>')
                 else:
-                    rows.append(f'<div class="row">{inner}</div>')
+                    rows.append(f'<div class="row row--static">{inner}</div>')
         items = "".join(feats) + "".join(rows)
         blocks.append(f'<div class="dayblock"><div class="dayblock__date">'
                       f'<div class="dd">{d.strftime("%d")}</div>'

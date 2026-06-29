@@ -22,4 +22,23 @@
       else if (navigator.clipboard){ navigator.clipboard.writeText(location.href); a.textContent = '\u2713'; }
     });
   });
+
+  // Placeholder guard: some venue pages serve a tiny lazy-load/spacer image that "loads"
+  // successfully, so the card's inline onerror never fires and faint overlay text is left
+  // sitting on a blank panel. Treat a loaded-but-tiny card photo like a failed image: drop
+  // has-photo, turn the panel blue, and remove the img so the text becomes readable.
+  function flagPlaceholder(img){
+    var panel = img.closest('.card__panel');
+    if (!panel) return;
+    panel.classList.remove('has-photo');
+    panel.classList.add('is-blue');
+    img.remove();
+  }
+  function checkPhoto(img){
+    if (img.naturalWidth > 0 && img.naturalWidth < 64) flagPlaceholder(img);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.card__photo'), function(img){
+    if (img.complete) checkPhoto(img);
+    else img.addEventListener('load', function(){ checkPhoto(img); });
+  });
 })();
