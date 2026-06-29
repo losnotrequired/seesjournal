@@ -28,7 +28,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "10"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "14"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 60000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -145,9 +145,16 @@ def _extract_text(html: str, url: str):
             tag.decompose()
     # Append each link's absolute URL inline (e.g. "Show Title [https://...]") so the
     # model can return the real per-event link instead of falling back to the homepage.
+    # But Add-to-Calendar / social-share / .ics links carry huge URL-encoded payloads and
+    # are never the event's own page, so skip inlining those (they'd blow the char budget
+    # and starve later events on calendars like KPBS).
+    _SKIP_HREF = re.compile(
+        r"(calendar\.google\.|outlook\.(live|office)\.|calendar\.yahoo\.|addtoany\.|"
+        r"action=TEMPLATE|[?&](u|url|text|body|subject)=https?|\.ics(\?|$)|"
+        r"//(www\.)?(facebook|twitter|x|linkedin|pinterest|reddit)\.com)", re.I)
     for a in soup.find_all("a", href=True):
         href = urljoin(url, (a.get("href") or "").strip())
-        if href.startswith("http"):
+        if href.startswith("http") and not _SKIP_HREF.search(href):
             a.append(f" [{href}] ")
     # Append each content image's URL inline (e.g. "{image: https://...}") so the model
     # can attach the right show photo to each event. Skip logos/icons/sprites.

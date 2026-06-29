@@ -76,7 +76,7 @@ sources:
 
   # ---- Aggregators, directories & arts councils ----
   - { name: "San Diego Reader — Art",         url: "https://www.sandiegoreader.com/san-diego-art-events/",                     type: html, force_render: true }
-  - { name: "KPBS — Arts & Culture",          url: "https://www.kpbs.org/news/arts-culture",                                   type: html }
+  - { name: "KPBS — Arts & Culture",          url: "https://www.kpbs.org/events/arts",                                         type: html }
   - { name: "San Diego Visual Arts Network",  url: "https://www.sdvisualarts.net/sdvan_new/ongoing_events.php",                type: html }
   - { name: "San Diego Art Directory",        url: "https://sandiegoartdirectory.com/single-category/events/?directory_type=general", type: html }
   - { name: "San Diego Magazine Events",      url: "https://sandiegomagazine.com/community-events/",                           type: html }

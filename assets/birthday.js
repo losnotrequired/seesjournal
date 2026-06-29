@@ -35,7 +35,12 @@
   var bdayMatches = artists.filter(function (a) { return (a.dob || "").slice(5) === md; });
   var artist, isBirthday;
   if (bdayMatches.length) {
-    artist = bdayMatches[year % bdayMatches.length];
+    // Priority: contemporary/modern (no era) > classic (Old Masters) > fill (added to cover
+    // empty days). The highest-priority tier present today headlines; within a tier, rotate by year.
+    var rank = function (a) { return a.era === "fill" ? 2 : (a.era === "classic" ? 1 : 0); };
+    var best = Math.min.apply(null, bdayMatches.map(rank));
+    var pool = bdayMatches.filter(function (a) { return rank(a) === best; });
+    artist = pool[year % pool.length];
     isBirthday = true;
   } else {
     artist = artists[doy % artists.length];
@@ -49,7 +54,10 @@
     ? MONTHS[parseInt(p[1], 10) - 1] + " " + parseInt(p[2], 10) + ", " + p[0]
     : (artist.dob || "");
 
-  txt("bday-kicker", isBirthday ? "Born on this day" : "Artist of the day");
+  var todayStr = MONTHS[now.getMonth()] + " " + now.getDate() + ", " + year;
+  txt("bday-kicker", todayStr);                       // the eyebrow always shows today's real date
+  var heading = document.getElementById("bday-h");     // only claim "Born on This Day" when it's true
+  if (heading) heading.textContent = isBirthday ? "Born on This Day" : "Artist of the Day";
   txt("bday-name", artist.name);
   txt("bday-when", "Born " + prettyDate);
   txt("bday-bio", artist.bio);
