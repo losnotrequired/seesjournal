@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mangelsen &mdash; Images of Nature &mdash; Sees Atlas</title>
+<meta name="description" content="Mangelsen &mdash; Images of Nature &mdash; La Jolla, San Diego. Address, map, website, and nearby art spaces. Part of the Sees Journal Atlas.">
+<link rel="icon" href="../favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css?v=31">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  .vp-back{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-dark)}
+  .vp-hero{margin:14px 0 0;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--rule-soft);background:#e9e6df}
+  .vp-hero img{width:100%;height:100%;object-fit:cover;display:block}
+  .vp-area{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin:20px 0 4px}
+  .vp-name{font-family:'Lora',serif;font-weight:600;font-size:34px;line-height:1.12;color:var(--ink-strong);margin:0}
+  .vp-addr{font-size:17px;color:#6b6258;margin:8px 0 0}
+  .vp-actions{margin:16px 0 0;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+  .vp-visit{font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;letter-spacing:.02em;color:#fff;background:var(--blue);padding:9px 16px;border-radius:6px}
+  .vp-visit:hover{background:var(--blue-dark)}
+  .vp-dir{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13.5px;color:var(--blue)}
+  .vp-dir:hover{color:var(--blue-dark)}
+  .vp-map{height:360px;margin:26px 0 0;border:1px solid var(--rule-soft);border-radius:10px;overflow:hidden;background:#e9e6df}
+  .vp-note{font-size:14px;color:#9a948a;font-style:italic;margin:10px 0 0}
+  .vp-sec{margin:36px 0 0}
+  .vp-sec h2{font-family:'Lora',serif;font-weight:600;font-size:22px;color:var(--ink-strong);border-bottom:2px solid var(--rule);padding-bottom:7px;margin:0 0 14px}
+  .vp-sec p{color:#6b6258;font-size:16px;line-height:1.62;margin:0}
+  .vp-nearby{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 24px}
+  .vp-nearby a{font-family:'Quicksand',sans-serif;font-weight:600;font-size:14.5px;color:var(--blue)}
+  .vp-nearby a:hover{color:var(--blue-dark)}
+  .leaflet-popup-content{font-family:'Lora',serif;font-size:14px;line-height:1.45}
+  @media(max-width:620px){ .vp-name{font-size:27px} .vp-map{height:300px} }
+</style>
+</head>
+<body id="top">
+<header class="site-header"><div class="wrap site-header__in">
+  <a href="../index.html" class="logo" aria-label="Sees Journal"><img src="../assets/images/logo.png" alt="Sees Journal"></a><span class="beta-tag">beta</span>
+  <nav class="topnav" aria-label="Primary">
+    <a href="../index.html">Today</a>
+    <a href="../onview.html">Calendar</a>
+    <a href="../standouts.html">Standouts</a>
+    <a href="../reviews.html">Reviews</a>
+    <a href="../places.html">Atlas</a>
+    <a href="../essays.html">Essays</a>
+  </nav>
+</div></header>
+
+<div class="wrap" style="max-width:820px">
+  <p style="margin:8px 0 0"><a class="vp-back" href="../places.html">&#8592; The Atlas</a></p>
+  <p class="vp-area">La Jolla</p>
+  <h1 class="vp-name">Mangelsen &mdash; Images of Nature</h1>
+  <p class="vp-addr">7916 Girard Ave, La Jolla, CA 92037</p>
+  <div class="vp-actions">
+    <a class="vp-visit" href="https://www.mangelsen.com/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
+    <a class="vp-dir" href="https://www.google.com/maps/search/?api=1&amp;query=7916%20Girard%20Ave%2C%20La%20Jolla%2C%20CA%2092037" target="_blank" rel="noopener noreferrer">Directions &#8599;</a>
+  </div>
+  <div class="vp-photo" id="vpphoto" data-lat="32.84686" data-lng="-117.27486" data-name="Mangelsen &mdash; Images of Nature"></div>
+  <div class="vp-map" id="vpmap"></div>
+  <p class="vp-note">Always confirm hours and the exact entrance with the venue before visiting.</p>
+  <div class="vp-sec">
+    <h2>About this space</h2>
+    <p>This is a living Atlas entry. A full description, current exhibitions, and hours for Mangelsen &mdash; Images of Nature are being added &mdash; for now, the address and map above will get you there, and <a href="https://www.mangelsen.com/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);font-weight:600">the gallery&rsquo;s own site</a> has the latest.</p>
+  </div>
+  <div class="vp-sec"><h2>Nearby in La Jolla</h2><ul class="vp-nearby"><li><a href="museum-of-contemporary-art-san-diego-la-jolla.html">Museum of Contemporary Art San Diego (La Jolla)</a></li><li><a href="athenaeum-music-arts-library.html">Athenaeum Music &amp; Arts Library</a></li><li><a href="quint-gallery.html">Quint Gallery</a></li><li><a href="joseph-bellows-gallery.html">Joseph Bellows Gallery</a></li><li><a href="tasende-gallery.html">Tasende Gallery</a></li></ul></div>
+</div>
+
+<footer class="site-footer"><div class="wrap">
+  <p class="mission">An <em>independent</em> guide to the art worth seeing in San Diego, California.</p>
+  <div class="footlinks"><a href="../about.html">About</a><a href="../contact.html">Contact</a><a href="../press.html">Press</a><a href="../privacy.html">Privacy</a></div>
+  <hr class="footrule">
+  <p class="copy">Sees Journal &middot; San Diego</p>
+  <p class="dev-disclaimer">Sees Journal is in beta &mdash; listings and features are still being added.</p>
+</div></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  if (typeof L === "undefined") return;
+  var map = L.map("vpmap", {scrollWheelZoom:false}).setView([32.84686, -117.27486], 16);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+  L.marker([32.84686, -117.27486]).addTo(map).bindPopup("<b>Mangelsen &mdash; Images of Nature</b><br>7916 Girard Ave, La Jolla, CA 92037");
+})();
+</script>
+<script src="../assets/main.js?v=31"></script>
+</body>
+</html>

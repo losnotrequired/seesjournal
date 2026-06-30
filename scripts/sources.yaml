@@ -149,3 +149,32 @@ sources:
   - { name: "Emerald C Gallery", url: "https://www.emeraldcgallery.com/", type: html }
   - { name: "Art Houz Studio Gallery", url: "https://arthouzstudio.com/", type: html }
   - { name: "CSUSM Arts Gallery", url: "https://www.csusm.edu/sofa/", type: html }
+
+  # --- Arts District Liberty Station galleries ---
+  - { name: "Nautical History Gallery & Museum", url: "http://www.nhgallery.org/", type: html }
+  - { name: "F1VE Art Studio & Gallery", url: "https://www.f1veartstudiogallery.com/", type: html }
+  - { name: "Mi Gallery, Tu Gallery", url: "https://migallerytugallery.com/", type: html }
+
+  # --- First Friday La Jolla Art Walk galleries ---
+  - { name: "Legends Gallery", url: "http://www.legendsgallerylajolla.com/", type: html }
+  - { name: "Bret Webster Gallery", url: "https://www.bretwebsterimages.com/", type: html }
+  - { name: "Concetta Antico Gallery", url: "https://www.concettaantico.com/", type: html }
+  - { name: "Contemporary Fine Arts Gallery", url: "https://www.contemporaryfineartsgallery.com/", type: html }
+  - { name: "Edna Pines Studio & Art Gallery", url: "https://www.ednapines.com/", type: html }
+  - { name: "Krista Schumacher Art Gallery", url: "https://www.kristaschumacherart.com/", type: html }
+  - { name: "LIK Fine Art", url: "https://www.lik.com/", type: html }
+  - { name: "Mangelsen — Images of Nature", url: "https://www.mangelsen.com/", type: html }
+  - { name: "Martin Lawrence Galleries", url: "https://www.martinlawrence.com/", type: html }
+  - { name: "Authentic Vintage Posters", url: "https://www.authenticvintageposters.com/", type: html }
+
+  # --- neighborhood art-walk galleries (Barrio / North Park / Bird Rock / Oceanside-Encinitas) ---
+  - { name: "Arjang's Treasure House of Fine Art", url: "https://arjangart.com/", type: html }
+  - { name: "Bommarito Art", url: "https://bommaritoart.com/", type: html }
+  - { name: "North Coastal Art Gallery", url: "https://www.northcoastalartgallery.com/", type: html }
+  - { name: "Muramid Mural Museum", url: "https://www.muramid.org/", type: html }
+  - { name: "Oceanside Art Collective", url: "https://www.oceansideartcollective.com/", type: html }
+  - { name: "Sesshin Art", url: "https://www.sesshinart.com/", type: html }
+  - { name: "Ethan Blu Transcendent Art Gallery", url: "https://ethanblu.com/", type: html }
+
+  # --- Bread & Salt resident galleries ---
+  - { name: "Ice Gallery", url: "https://icegallerysd.com/", type: html }
