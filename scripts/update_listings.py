@@ -28,7 +28,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "24"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "26"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 60000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5
@@ -1232,10 +1232,9 @@ def render(events: list[dict], horizon: int) -> None:
     s = replace_between(s, "<!-- AUTO:DATERANGE:START -->", "<!-- AUTO:DATERANGE:END -->", daterange_str(horizon))
     hev = hero_event(events)
     hero = hero_inner(events) or (
-        '<h3>Listings updating</h3>'
-        '<p class="hero__meta">New shows are being gathered</p>'
-        '<p class="hero__cat">Openings, closings, and art walks will appear here shortly.</p>'
-        '<a class="pill" href="onview.html">Browse all</a>')
+        '<h3>This week&rsquo;s standout is on its way</h3>'
+        '<p class="hero__cat">Meanwhile, see everything on view across San Diego.</p>'
+        '<a class="pill" href="onview.html">Browse the calendar</a>')
     s = replace_between(s, "<!-- AUTO:HERO:START -->", "<!-- AUTO:HERO:END -->", hero)
     s = replace_between(s, "<!-- AUTO:HEROIMG:START -->", "<!-- AUTO:HEROIMG:END -->", hero_photo(hev))
     ordered = picks + [e for e in events if not e.get("is_pick")]
@@ -1245,8 +1244,8 @@ def render(events: list[dict], horizon: int) -> None:
         highlights = grid(home_picks)
     else:
         tag, head, sub = ("This Week", "What&rsquo;s On",
-                          "Listings updating &mdash; check back shortly.")
-        highlights = '<p class="note">New listings are being gathered &mdash; check back shortly.</p>'
+                          "We&rsquo;re lining up this week&rsquo;s openings and exhibitions.")
+        highlights = '<p class="note">New shows are added as venues announce them &mdash; check back soon.</p>'
     s = replace_between(s, "<!-- AUTO:OPENTAG:START -->", "<!-- AUTO:OPENTAG:END -->", tag)
     s = replace_between(s, "<!-- AUTO:OPENHEAD:START -->", "<!-- AUTO:OPENHEAD:END -->", head)
     s = replace_between(s, "<!-- AUTO:OPENSUB:START -->", "<!-- AUTO:OPENSUB:END -->", sub)

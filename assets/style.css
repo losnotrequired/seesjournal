@@ -337,7 +337,7 @@ a{color:inherit;text-decoration:none}
 .bday-head h2{font-weight:600;font-size:clamp(30px,4.6vw,46px);line-height:1.05;color:var(--ink-strong)}
 .bday-sub{font-family:'Caveat',cursive;font-size:23px;opacity:.82;margin-top:4px;max-width:60ch}
 .bday-card{display:flex;gap:30px;align-items:stretch;background:var(--bg);border:1px solid var(--rule-soft)}
-.bday-portrait{flex:0 0 246px;align-self:stretch;min-height:300px;position:relative;
+.bday-portrait{flex:0 0 calc(50% - 15px);align-self:stretch;min-height:300px;position:relative;
   background:linear-gradient(150deg,var(--blue) 0%,var(--blue-dark) 55%,var(--brown) 100%);
   background-size:cover;background-position:center top;display:flex;align-items:center;justify-content:center}
 .bday-initials{font-family:'Lora',serif;font-weight:600;font-size:68px;color:rgba(255,255,255,.92);letter-spacing:.02em}
@@ -347,7 +347,7 @@ a{color:inherit;text-decoration:none}
   text-transform:uppercase;color:var(--brick);margin-bottom:4px}
 .bday-name{font-weight:600;font-size:clamp(26px,3.5vw,38px);line-height:1.08;color:var(--ink-strong);margin:0 0 10px}
 .bday-bio{font-size:17px;line-height:1.55;color:var(--ink);margin:0 0 20px;max-width:54ch}
-.bday-work{background:var(--blue-tint);border-left:3px solid var(--blue);padding:15px 18px;margin-bottom:22px}
+.bday-work{background:var(--blue-tint);padding:15px 18px;margin-bottom:22px}
 .bday-work-label{display:block;font-family:'Quicksand',sans-serif;font-weight:600;font-size:11px;
   letter-spacing:.12em;text-transform:uppercase;color:var(--blue-dark);margin-bottom:5px}
 .bday-work-title{font-family:'Lora',serif;font-style:italic;font-size:20px;line-height:1.3;color:var(--ink-strong);margin:0 0 3px}
