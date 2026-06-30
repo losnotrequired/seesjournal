@@ -4,7 +4,7 @@
    The key is visible in page source, so in the Google Cloud console restrict it
    to your domain (HTTP referrers) and enable the "Street View Static API".
    Venues with no Street View coverage stay photo-less automatically. */
-var STREETVIEW_KEY = "";
+var STREETVIEW_KEY = "AIzaSyBpnywBZdtHzXlCpTcruQe3Sdqie-bCDbw";
 
 (function(){
   var menu = document.getElementById('menu');
@@ -72,4 +72,34 @@ var STREETVIEW_KEY = "";
   img.onerror = function(){ /* no Street View coverage here — leave hidden */ };
   img.src = "https://maps.googleapis.com/maps/api/streetview?size=640x400&location="
             + loc + "&fov=80&pitch=0&source=outdoor&return_error_code=true&key=" + STREETVIEW_KEY;
+})();
+
+(function(){
+  /* Atlas directory thumbnails: lazy-load a Street View image into each venue
+     card as it scrolls into view; cards with no coverage keep their monogram. */
+  if (!STREETVIEW_KEY) return;
+  var cards = document.querySelectorAll(".vcard[data-lat]");
+  if (!cards.length) return;
+  function load(card){
+    var media = card.querySelector(".vcard__media");
+    if (!media || media.querySelector(".vcard__photo")) return;
+    var lat = card.getAttribute("data-lat"), lng = card.getAttribute("data-lng");
+    if (!lat || !lng) return;
+    var loc = encodeURIComponent(lat + "," + lng);
+    var img = new Image();
+    img.className = "vcard__photo";
+    img.alt = "Street view of " + (card.getAttribute("data-name") || "this venue");
+    img.onerror = function(){ /* no Street View here — monogram stays */ };
+    img.onload = function(){ media.appendChild(img); };
+    img.src = "https://maps.googleapis.com/maps/api/streetview?size=600x375&location="
+              + loc + "&fov=80&pitch=0&source=outdoor&return_error_code=true&key=" + STREETVIEW_KEY;
+  }
+  if ("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries, obs){
+      entries.forEach(function(e){ if (e.isIntersecting){ load(e.target); obs.unobserve(e.target); } });
+    }, {rootMargin:"200px"});
+    Array.prototype.forEach.call(cards, function(c){ io.observe(c); });
+  } else {
+    Array.prototype.forEach.call(cards, load);
+  }
 })();
