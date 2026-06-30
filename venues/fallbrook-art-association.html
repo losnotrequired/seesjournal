@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/style.css?v=26">
+<link rel="stylesheet" href="../assets/style.css?v=27">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   .vp-back{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-dark)}
@@ -58,6 +58,7 @@
     <a class="vp-visit" href="https://fallbrookartassn.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
     <a class="vp-dir" href="https://www.google.com/maps/search/?api=1&amp;query=119%20N%20Main%20Ave%2C%20Fallbrook%2C%20CA%2092028" target="_blank" rel="noopener noreferrer">Directions &#8599;</a>
   </div>
+  <div class="vp-photo" id="vpphoto" data-lat="33.3765" data-lng="-117.251" data-name="Fallbrook Art Association"></div>
   <div class="vp-map" id="vpmap"></div>
   <p class="vp-note">Always confirm hours and the exact entrance with the venue before visiting.</p>
   <div class="vp-sec">
@@ -84,5 +85,6 @@
   L.marker([33.3765, -117.251]).addTo(map).bindPopup("<b>Fallbrook Art Association</b><br>119 N Main Ave, Fallbrook, CA 92028");
 })();
 </script>
+<script src="../assets/main.js?v=27"></script>
 </body>
 </html>

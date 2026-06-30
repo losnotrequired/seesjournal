@@ -84,6 +84,7 @@ sources:
   - { name: "DoSD — Arts & Culture",          url: "https://dosd.com/events/arts-and-culture",                                 type: html }
   - { name: "City of San Diego — Events",     url: "https://www.sandiego.gov/events",                                          type: html }
   - { name: "Artforum Artguide — San Diego",  url: "https://artguide.artforum.com/artguide/place/san-diego?category=all",      type: html, force_render: true }   # JS listings app — needs render
+  - { name: "Eventbrite — San Diego Art",     url: "https://www.eventbrite.com/d/ca--san-diego/art-events/",                   type: html, force_render: true, sd_only: true }   # ad-heavy JS feed: render it, keep SD-only; the extractor drops the classes/parties/comedy noise
 
   # ---- Nonprofit / alternative / DIY art spaces ----
   - { name: "Bread & Salt",                   url: "https://www.breadandsaltsandiego.com/",                                    type: html }

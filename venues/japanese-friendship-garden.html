@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/style.css?v=26">
+<link rel="stylesheet" href="../assets/style.css?v=27">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   .vp-back{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-dark)}
@@ -58,6 +58,7 @@
     <a class="vp-visit" href="https://www.niwa.org/" target="_blank" rel="noopener noreferrer">Visit site &#8599;</a>
     <a class="vp-dir" href="https://www.google.com/maps/search/?api=1&amp;query=2215%20Pan%20American%20Rd%20E%2C%20San%20Diego%2C%20CA%2092101" target="_blank" rel="noopener noreferrer">Directions &#8599;</a>
   </div>
+  <div class="vp-photo" id="vpphoto" data-lat="32.7295" data-lng="-117.1488" data-name="Japanese Friendship Garden"></div>
   <div class="vp-map" id="vpmap"></div>
   <p class="vp-note">Always confirm hours and the exact entrance with the venue before visiting.</p>
   <div class="vp-sec">
@@ -84,5 +85,6 @@
   L.marker([32.7295, -117.1488]).addTo(map).bindPopup("<b>Japanese Friendship Garden</b><br>2215 Pan American Rd E, San Diego, CA 92101");
 })();
 </script>
+<script src="../assets/main.js?v=27"></script>
 </body>
 </html>

@@ -1,3 +1,11 @@
+/* === Atlas venue photos — Google Street View Static =======================
+   Paste your Google Maps API key below to show a front-of-building photo on
+   each Atlas venue page. Leave it "" and venue pages just show the map.
+   The key is visible in page source, so in the Google Cloud console restrict it
+   to your domain (HTTP referrers) and enable the "Street View Static API".
+   Venues with no Street View coverage stay photo-less automatically. */
+var STREETVIEW_KEY = "";
+
 (function(){
   var menu = document.getElementById('menu');
   var hamb = document.getElementById('hamb');
@@ -41,4 +49,27 @@
     if (img.complete) checkPhoto(img);
     else img.addEventListener('load', function(){ checkPhoto(img); });
   });
+})();
+
+(function(){
+  if (!STREETVIEW_KEY) return;
+  var box = document.getElementById("vpphoto");
+  if (!box) return;
+  var lat = box.getAttribute("data-lat"), lng = box.getAttribute("data-lng");
+  if (!lat || !lng) return;
+  var loc = encodeURIComponent(lat + "," + lng);
+  var name = box.getAttribute("data-name") || "this venue";
+  var img = new Image();
+  img.alt = "Street view of " + name;
+  img.onload = function(){
+    box.appendChild(img);
+    var cap = document.createElement("span");
+    cap.className = "vp-photo__cap";
+    cap.textContent = "Street View imagery \u00a9 Google";
+    box.appendChild(cap);
+    box.classList.add("is-shown");
+  };
+  img.onerror = function(){ /* no Street View coverage here — leave hidden */ };
+  img.src = "https://maps.googleapis.com/maps/api/streetview?size=640x400&location="
+            + loc + "&fov=80&pitch=0&source=outdoor&return_error_code=true&key=" + STREETVIEW_KEY;
 })();

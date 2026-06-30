@@ -391,3 +391,9 @@ a{color:inherit;text-decoration:none}
 /* non-clickable event tiles (no usable external link) — remove the hover affordance */
 .card--static:hover{box-shadow:none}
 .mcard--static:hover,.row--static:hover{background:transparent}
+
+/* Atlas venue storefront photo (Google Street View) */
+.vp-photo{display:none;margin:26px 0 0;border:1px solid var(--rule-soft);border-radius:10px;overflow:hidden;position:relative;line-height:0;background:#e9e6df}
+.vp-photo.is-shown{display:block}
+.vp-photo img{display:block;width:100%;height:auto}
+.vp-photo__cap{position:absolute;right:0;bottom:0;line-height:1.2;font-family:'Quicksand',sans-serif;font-size:10.5px;letter-spacing:.02em;color:#fff;background:rgba(0,0,0,.45);padding:3px 8px;border-top-left-radius:8px}
