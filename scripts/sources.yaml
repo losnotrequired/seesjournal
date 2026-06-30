@@ -123,3 +123,29 @@ sources:
   - { name: "Coronado Art Association",        url: "https://www.coronadoartassn.com/",                                         type: html }
   - { name: "SD Public Library — Visual Arts", url: "https://sandiego.events.mylibrary.digital/",                  type: html, force_render: true }   # branch exhibitions, JS events platform
   - { name: "Arts District Liberty Station",   url: "https://artsdistrictlibertystation.org/our-programs/whats-here/",          type: html }
+
+  # --- added from county-wide visual-arts sweep (Atlas venues) ---
+  - { name: "R.B. Stevenson Gallery", url: "https://www.rbstevensongallery.com/", type: html }
+  - { name: "Centro Cultural de la Raza", url: "https://www.centroraza.com/", type: html }
+  - { name: "Adelman Fine Art", url: "https://www.adelmanfineart.com/", type: html }
+  - { name: "Stefanie Bales Fine Art", url: "https://www.stefaniebales.com/", type: html }
+  - { name: "Mee Shim Fine Art", url: "https://meeshim.com/", type: html }
+  - { name: "Agora Galleries", url: "https://agoragalleries.com/", type: html }
+  - { name: "La Bodega Gallery", url: "https://labodegagallery.com/", type: html }
+  - { name: "Art on 30th", url: "https://arton30th.com/", type: html }
+  - { name: "San Diego Craft Collective", url: "https://sandiegocraft.org/", type: html }
+  - { name: "New Americans Museum", url: "https://newamericansmuseum.org/", type: html }
+  - { name: "William D. Cannon Art Gallery", url: "https://library.carlsbadca.gov/programs/cannon-art-gallery", type: html }
+  - { name: "Brooks Theater Gallery", url: "https://oceansidetheatre.org/brooks-theater-gallery/", type: html }
+  - { name: "Off Track Gallery", url: "https://offtrackgallery.com/", type: html }
+  - { name: "Aaron Chang Ocean Art Gallery", url: "https://aaronchang.com/", type: html }
+  - { name: "Exclusive Collections Gallery", url: "https://www.ecgallery.com/", type: html }
+  - { name: "Susan Street Fine Art", url: "https://www.susanstreet.com/", type: html }
+  - { name: "Vista Art Foundation", url: "https://www.artinvista.org/", type: html }
+  - { name: "Foothills Art Association", url: "https://www.foothillsartassociation.com/", type: html }
+  - { name: "Heritage of the Americas Museum", url: "https://www.heritageoftheamericasmuseum.com/", type: html }
+  - { name: "Olaf Wieghorst Museum", url: "https://www.wieghorstmuseum.org/", type: html }
+  - { name: "The FRONT Arte & Cultura", url: "https://www.casafamiliar.org/", type: html }
+  - { name: "Emerald C Gallery", url: "https://www.emeraldcgallery.com/", type: html }
+  - { name: "Art Houz Studio Gallery", url: "https://arthouzstudio.com/", type: html }
+  - { name: "CSUSM Arts Gallery", url: "https://www.csusm.edu/sofa/", type: html }
