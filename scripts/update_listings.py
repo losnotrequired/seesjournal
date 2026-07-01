@@ -1022,7 +1022,7 @@ def opening_header(picks: list[dict]) -> tuple[str, str, str]:
         tag, head = "This Week", "This Week&rsquo;s Openings"
     else:
         tag, head = "On View", "On View This Week"
-    shown, total = len(picks[:6]), len(picks)
+    shown, total = len(picks), len(picks)
     if total > shown:
         sub = f"{shown} of {total} picks &mdash; see them all on On View"
     else:
@@ -1238,7 +1238,18 @@ def render(events: list[dict], horizon: int) -> None:
     s = replace_between(s, "<!-- AUTO:HERO:START -->", "<!-- AUTO:HERO:END -->", hero)
     s = replace_between(s, "<!-- AUTO:HEROIMG:START -->", "<!-- AUTO:HEROIMG:END -->", hero_photo(hev))
     ordered = picks + [e for e in events if not e.get("is_pick")]
-    home_picks = [e for e in ordered if e is not hev][:6]
+    # On View This Week: up to 9 cards (3 rows), no more than two per institution
+    home_picks, _seen_venue = [], {}
+    for _e in ordered:
+        if _e is hev:
+            continue
+        _v = (_e.get("venue") or "").strip().lower()
+        if _seen_venue.get(_v, 0) >= 2:
+            continue
+        _seen_venue[_v] = _seen_venue.get(_v, 0) + 1
+        home_picks.append(_e)
+        if len(home_picks) >= 9:
+            break
     if home_picks:
         tag, head, sub = opening_header(home_picks)
         highlights = grid(home_picks)
