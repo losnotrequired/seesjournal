@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Caveat:wght@400;600&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=31">
+<link rel="stylesheet" href="assets/style.css?v=32">
 <style>
 /* Two-week calendar grid — scoped to this page so the shared stylesheet/version is untouched */
 .calwrap{margin-top:18px}
@@ -62,10 +62,10 @@
   <header class="page-hero">
     <h1>Calendar</h1>
     <p><!-- AUTO:ONVIEWSTATS:START -->
-Listings updating &mdash; new shows are being gathered.
+11 shows on view
 <!-- AUTO:ONVIEWSTATS:END --></p>
     <p class="note"><!-- AUTO:UPDATED:START -->
-Updated June 27, 2026
+Updated June 30, 2026
 <!-- AUTO:UPDATED:END --></p>
   </header>
 
@@ -73,7 +73,7 @@ Updated June 27, 2026
   <section id="grid">
     <div class="shead"><span class="tag-blue">Calendar</span><h2>Two Weeks at a Glance</h2><p>every dated listing, laid out by the day</p></div>
     <!-- AUTO:CALGRID:START -->
-<p class="note">No dated events fall in the next two weeks yet &mdash; see the day-by-day list below for everything currently on view.</p>
+<div class="calwrap"><table class="calgrid"><thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead><tbody><tr><td class="is-out"><span class="cal__num">28</span></td><td class="is-out"><span class="cal__num">29</span></td><td class="is-today"><span class="cal__num">30</span></td><td><span class="cal__num">Jul 1</span></td><td><span class="cal__num">2</span></td><td><span class="cal__num">3</span></td><td><span class="cal__num">4</span></td></tr><tr><td><span class="cal__num">5</span></td><td><span class="cal__num">6</span></td><td><span class="cal__num">7</span></td><td><span class="cal__num">8</span></td><td><span class="cal__num">9</span><a class="calev calev--talk" href="https://www.sdmart.org/visit-mopa-at-sdma/" target="_blank" rel="noopener" title="Cecil Beaton: Fashion Photography Lecture">6:00 PM Cecil Beaton: Fashion Photography Lecture</a></td><td><span class="cal__num">10</span></td><td><span class="cal__num">11</span></td></tr><tr><td><span class="cal__num">12</span></td><td><span class="cal__num">13</span></td><td class="is-out"><span class="cal__num">14</span></td><td class="is-out"><span class="cal__num">15</span></td><td class="is-out"><span class="cal__num">16</span></td><td class="is-out"><span class="cal__num">17</span></td><td class="is-out"><span class="cal__num">18</span></td></tr></tbody></table><div class="callegend"><span><i style="background:var(--blue)"></i>Opening / Reception</span><span><i style="background:var(--brick)"></i>Closing</span><span><i style="background:#7b4fb0"></i>Art Walk</span><span><i style="background:#2b8a86"></i>Talk</span><span><i style="background:#b9802b"></i>Market</span><span><i style="background:#6b6258"></i>Exhibition</span></div></div>
 <!-- AUTO:CALGRID:END -->
   </section>
 
@@ -81,7 +81,17 @@ Updated June 27, 2026
   <section id="also">
     <div class="shead"><span class="tag-blue">Also On View</span><h2>Still Up All Week</h2><p>major shows running through the window</p></div>
     <!-- AUTO:ALSO:START -->
-<p class="note">No ongoing exhibitions listed right now &mdash; see the day-by-day calendar below.</p>
+<div class="grid">
+<a class="card" href="https://oma-online.org/" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Aug 2</span></div><div class="card__body"><div class="card__title">Matrix Multiplied: Hybrid Approaches to Printmaking</div><div class="card__venue">Oceanside Museum of Art &middot; Oceanside</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://mcasd.org/exhibitions" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Aug 9</span></div><div class="card__body"><div class="card__title">Giants: Art from the Dean Collection of Swizz Beatz and Alicia Keys</div><div class="card__venue">Museum of Contemporary Art San Diego &middot; La Jolla</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://oma-online.org/" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Sep 6</span></div><div class="card__body"><div class="card__title">Brothers in Arts: James Hubbell and Bert Hubbell</div><div class="card__venue">Oceanside Museum of Art &middot; Oceanside</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://www.sdmart.org/exhibitions/" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Sep 20</span></div><div class="card__body"><div class="card__title">Cafés and Cabarets</div><div class="card__venue">The San Diego Museum of Art &middot; Balboa Park</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://mingei.org/exhibitions" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Sep 20</span></div><div class="card__body"><div class="card__title">Clearly Indigenous</div><div class="card__venue">Mingei International Museum &middot; Balboa Park</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://oma-online.org/" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Sep 27</span></div><div class="card__body"><div class="card__title">Kate Tova: A Place to Rest (My Tired Mind)</div><div class="card__venue">Oceanside Museum of Art &middot; Oceanside</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://oma-online.org/" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Nov 1</span></div><div class="card__body"><div class="card__title">David Adey: Sacrificial Bodies</div><div class="card__venue">Oceanside Museum of Art &middot; Oceanside</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://mingei.org/exhibitions" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Nov 1</span></div><div class="card__body"><div class="card__title">To Catch a Fish</div><div class="card__venue">Mingei International Museum &middot; Balboa Park</div><span class="card__more">More Info</span></div></a>
+<a class="card" href="https://mcasd.org/exhibitions" target="_blank" rel="noopener"><div class="card__panel is-blue"><span class="card__kick kick--exhibition">On View</span><span class="card__date">Through Nov 8</span></div><div class="card__body"><div class="card__title">Prospect 2026</div><div class="card__venue">Museum of Contemporary Art San Diego &middot; La Jolla</div><span class="card__more">More Info</span></div></a>
+</div>
 <!-- AUTO:ALSO:END -->
   </section>
 
@@ -89,7 +99,7 @@ Updated June 27, 2026
   <section id="days">
     <div class="shead"><span class="tag-blue">Calendar</span><h2>Day by Day</h2><p>ten days, every listing</p></div>
     <!-- AUTO:CALENDAR:START -->
-<p class="note">No dated openings or events in the next 12 days. The picks above are on view now &mdash; check back for new dates.</p>
+<div class="dayblock"><div class="dayblock__date"><div class="dd">09</div><div class="dw">Thursday</div></div><div class="dayblock__items"><a class="row" href="https://www.sdmart.org/visit-mopa-at-sdma/" target="_blank" rel="noopener"><span class="row__sq thumb--talk"></span><span class="row__title">Cecil Beaton: Fashion Photography Lecture</span><span class="row__venue">Museum of Photographic Arts</span><span class="row__time">6:00 PM</span></a></div></div>
 <!-- AUTO:CALENDAR:END -->
   </section>
 
@@ -158,7 +168,7 @@ Updated June 27, 2026
     <div class="notewrap">
       <div class="notecol grey"><h3>This Week</h3><ul>
         <!-- AUTO:TIPS:START -->
-<li>No dated openings or art walks in the next 12 days &mdash; the ongoing shows above are your best bet.</li>
+<li><b>Busiest day:</b> Saturday, May 2 &mdash; 2 things on.</li>
 <!-- AUTO:TIPS:END -->
       </ul></div>
       <div class="notecol dark"><h3>Before You Go</h3><ul>
@@ -181,6 +191,6 @@ Updated June 27, 2026
   <p class="dev-disclaimer">Sees Journal is in beta &mdash; listings and features are still being added.</p>
 </div></footer>
 <a href="#top" class="totop" id="totop" aria-label="Back to top">&#8593;</a>
-<script src="assets/main.js?v=31"></script>
+<script src="assets/main.js?v=32"></script>
 </body>
 </html>

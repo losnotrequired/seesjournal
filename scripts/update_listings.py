@@ -28,7 +28,7 @@ SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.yaml
 
 MODEL = "claude-haiku-4-5-20251001"   # cheap, fast extraction
 HORIZON_DEFAULT = 12
-STYLE_VERSION = "31"   # bump when assets/style.css changes; render() stamps it into the pages
+STYLE_VERSION = "32"   # bump when assets/style.css changes; render() stamps it into the pages
 MAX_TEXT_CHARS = 60000
 REQUEST_TIMEOUT = 20
 RATE_LIMIT_SECONDS = 1.5

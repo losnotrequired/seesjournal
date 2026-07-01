@@ -178,3 +178,23 @@ sources:
 
   # --- Bread & Salt resident galleries ---
   - { name: "Ice Gallery", url: "https://icegallerysd.com/", type: html }
+
+  # ---- added: directory gaps + Julian-area venues ----
+  - { name: "WorldBeat Cultural Center", url: "https://www.worldbeatcenter.org/", type: html }
+  - { name: "VISUAL gallery + design", url: "https://www.visualshopsd.com/", type: html }
+  - { name: "Pacific View Arts Center", url: "https://www.encinitasca.gov/residents/arts-culture", type: html }
+  - { name: "Solana Beach City Hall Gallery", url: "https://cityofsolanabeach.ca.gov/en/cityhallgallery", type: html }
+  - { name: "EC Gallery", url: "https://ecgallery.com/solana-beach", type: html }
+  - { name: "PHES Gallery", url: "https://phesgallery.com/", type: html }
+  - { name: "Barrio Glassworks", url: "https://www.barrioglassworks.com/", type: html }
+  - { name: "Studio ACE", url: "https://www.studioace.org/", type: html }
+  - { name: "Casa Casillas", url: "https://www.chulavistaca.gov/departments/library/cultural-arts/casa-casillas", type: html }
+  - { name: "City of Vista Civic Center Gallery", url: "https://www.cityofvista.com/residents/public-art", type: html }
+  - { name: "SDSU Everett Gee Jackson Gallery", url: "https://art.sdsu.edu/gallery-program/everett-gee-jackson", type: html }
+  - { name: "Julian Arts Guild Gallery", url: "https://julianartsguild.org/", type: html }
+  - { name: "Coyote Jack Art Studio", url: "https://www.coyotejackartstudio.com/", type: html }
+  - { name: "Ilan-Lael Foundation", url: "https://ilanlaelfoundation.org/", type: html }
+
+  # ---- all remaining Atlas venues wired as event sources ----
+  - { name: "The Blue Azul Collection", url: "https://www.artsy.net/partner/the-blue-azul-collection", type: html }
+  - { name: "La Galleria", url: "https://ntcfoundation.org/", type: html }

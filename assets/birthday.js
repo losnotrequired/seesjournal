@@ -143,6 +143,20 @@
         el.innerHTML = ""; el.appendChild(a); el.style.display = "block";
       }).catch(function () {});
   }
+  // For a non-free image (e.g. a fair-use file Wikipedia hosts locally, not on Commons): show a
+  // short "may be subject to copyright" notice linking to the source article instead of a license.
+  function showCopyrightNote(el, href) {
+    if (!el) return;
+    var node;
+    if (href) {
+      node = document.createElement("a");
+      node.href = href; node.target = "_blank"; node.rel = "noopener noreferrer";
+      node.textContent = "Image may be subject to copyright";
+    } else {
+      node = document.createTextNode("Image may be subject to copyright");
+    }
+    el.innerHTML = ""; el.appendChild(node); el.style.display = "block";
+  }
 
   // Portrait: prefer the article's Commons lead image; else fall back to the artist's Wikidata
   // "image" (P18), which is always a free Commons file. The monogram stays if neither exists.
@@ -202,17 +216,26 @@
         if (!j) return;
         var src = j.thumbnail && j.thumbnail.source;
         var blurb = ((j.description || "") + " " + (j.extract || "")).toLowerCase();
-        if (isCommons(src) && surname && blurb.indexOf(surname) !== -1) {
+        // Show the work's lead image when the article is genuinely about this artist's piece
+        // (its text names the artist). Free Commons images get a full author/license credit;
+        // non-free images (e.g. fair-use files Wikipedia hosts) get a "may be copyrighted" notice.
+        if (src && surname && blurb.indexOf(surname) !== -1) {
           var img = document.getElementById("bday-workimg");
           if (!img) return;
+          var commons = isCommons(src);
+          var page = j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page;
           var triedFallback = false;
           img.alt = artist.work || "";
-          img.onload = function () { img.hidden = false; showCredit(document.getElementById("bday-work-credit"), commonsFile(src)); };
+          img.onload = function () {
+            img.hidden = false;
+            if (commons) showCredit(document.getElementById("bday-work-credit"), commonsFile(src));
+            else showCopyrightNote(document.getElementById("bday-work-credit"), page);
+          };
           img.onerror = function () {
             if (!triedFallback) { triedFallback = true; img.src = src; }   // retry at the original size
             else { img.hidden = true; }                                    // give up -> the link stays
           };
-          img.src = upsize(src, 800);
+          img.src = commons ? upsize(src, 800) : src;   // don't upscale a non-free thumbnail
         }
       }).catch(function () {});
     }
